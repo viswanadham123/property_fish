@@ -16,9 +16,10 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const DIST_PATH = path.join(__dirname, '..', 'dist')
 
+const HOST = process.env.HOST || '0.0.0.0'
 const PORT = Number(process.env.PORT || 4000)
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me'
-const MONGODB_URI = process.env.MONGODB_URI
+const MONGODB_URI = (process.env.MONGODB_URI || '').trim()
 const DATABASE_NAME = process.env.MONGODB_DB_NAME || 'propertyfish'
 
 function makeToken(user) {
@@ -67,24 +68,58 @@ async function attachUserMaybe(req, _res, next) {
   next()
 }
 
+/** Origins in CORS_ORIGIN: comma and/or space separated, e.g. https://app.com,http://localhost:5174 */
+function corsOptionsFromEnv() {
+  const raw = process.env.CORS_ORIGIN
+  if (!raw?.trim()) {
+    return { origin: true }
+  }
+  const allowed = raw
+    .split(/[,\s]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  return {
+    origin(origin, cb) {
+      if (!origin) return cb(null, true)
+      if (allowed.includes(origin)) return cb(null, true)
+      cb(null, false)
+    },
+  }
+}
+
 async function start() {
   if (!MONGODB_URI) {
     // eslint-disable-next-line no-console
-    console.error('Missing MONGODB_URI. Add it to your .env or Render environment.')
+    console.error('Missing MONGODB_URI.')
+    // eslint-disable-next-line no-console
+    console.error(
+      'Local: set MONGODB_URI in a .env file next to package.json. Render: Dashboard → this Web Service → Environment → add MONGODB_URI (the repo .env file is not deployed).',
+    )
     process.exit(1)
   }
 
-  await mongoose.connect(MONGODB_URI, {
-    dbName: DATABASE_NAME,
-  })
-  // eslint-disable-next-line no-console
-  console.log(`MongoDB connected (db: ${DATABASE_NAME})`)
+  try {
+    await mongoose.connect(MONGODB_URI, {
+      dbName: DATABASE_NAME,
+      serverSelectionTimeoutMS: 15_000,
+      connectTimeoutMS: 15_000,
+    })
+    // eslint-disable-next-line no-console
+    console.log(`MongoDB connected (db: ${DATABASE_NAME})`)
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('MongoDB connection failed:', err instanceof Error ? err.message : String(err))
+    // eslint-disable-next-line no-console
+    console.error(
+      'Fix: set MONGODB_URI on Render → Environment. In Atlas → Network Access, allow 0.0.0.0/0 (or your egress IP) while testing.',
+    )
+    process.exit(1)
+  }
 
   await seedListingsFromJsonIfEmpty()
 
-  const corsOrigin = process.env.CORS_ORIGIN
   const app = express()
-  app.use(cors(corsOrigin ? { origin: corsOrigin } : { origin: true }))
+  app.use(cors(corsOptionsFromEnv()))
   app.use(express.json({ limit: '1mb' }))
 
   app.get('/api/health', (_req, res) => {
@@ -208,9 +243,9 @@ async function start() {
     res.sendFile(path.join(DIST_PATH, 'index.html'))
   })
 
-  app.listen(PORT, () => {
+  app.listen(PORT, HOST, () => {
     // eslint-disable-next-line no-console
-    console.log(`Server running on http://localhost:${PORT}`)
+    console.log(`Server listening on ${HOST}:${PORT}`)
   })
 }
 
