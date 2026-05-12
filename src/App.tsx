@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Header } from './components/Header'
 import { SearchStrip } from './components/SearchStrip'
 import { FilterSidebar } from './components/FilterSidebar'
@@ -11,12 +11,14 @@ import { SignUpScreen } from './components/SignUpScreen'
 import { fetchListingCatalogue, type ListingCatalogue, type ListingIntent } from './api/listingsApi'
 import { filterListings, sortListings, type SortMode } from './lib/filterAndSort'
 import { DEFAULT_FILTERS, type FilterState } from './types/filters'
+import { useAuth } from './context/AuthContext'
 
 const REGION_CATALOGUE_TOTAL = 1581
 const PAGE_CHUNK = 6
 type ScreenMode = 'listings' | 'post-property' | 'sign-in' | 'sign-up'
 
 export default function App() {
+  const { user, logout } = useAuth()
   const [catalogue, setCatalogue] = useState<ListingCatalogue>({ buy: [], rent: [] })
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -35,32 +37,30 @@ export default function App() {
   const [visibleCount, setVisibleCount] = useState(PAGE_CHUNK)
   const [screen, setScreen] = useState<ScreenMode>('listings')
 
-  useEffect(() => {
-    const controller = new AbortController()
-    let alive = true
-
-    ;(async () => {
+  const loadCatalogue = useCallback(async (opts?: { signal?: AbortSignal; showSpinner?: boolean }) => {
+    const showSpinner = opts?.showSpinner !== false
+    if (showSpinner) {
       setLoading(true)
       setLoadError(null)
-      try {
-        const rows = await fetchListingCatalogue(controller.signal)
-        if (!alive) return
-        setCatalogue(rows)
-        setLastSynced(new Date())
-      } catch (err) {
-        if (!alive) return
-        if (err instanceof DOMException && err.name === 'AbortError') return
-        setLoadError('Unable to refresh listings. Please try again.')
-      } finally {
-        if (alive) setLoading(false)
-      }
-    })()
-
-    return () => {
-      alive = false
-      controller.abort()
+    }
+    try {
+      const rows = await fetchListingCatalogue(opts?.signal)
+      setCatalogue(rows)
+      setLastSynced(new Date())
+      if (showSpinner) setLoadError(null)
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
+      if (showSpinner) setLoadError('Unable to refresh listings. Please try again.')
+    } finally {
+      if (showSpinner) setLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void loadCatalogue({ signal: controller.signal, showSpinner: true })
+    return () => controller.abort()
+  }, [loadCatalogue])
 
   const activeListings = useMemo(() => catalogue[intent], [catalogue, intent])
 
@@ -80,15 +80,7 @@ export default function App() {
   }
 
   function retryFetch() {
-    setLoading(true)
-    setLoadError(null)
-    fetchListingCatalogue()
-      .then((rows) => {
-        setCatalogue(rows)
-        setLastSynced(new Date())
-      })
-      .catch(() => setLoadError('Unable to refresh listings. Please try again.'))
-      .finally(() => setLoading(false))
+    void loadCatalogue({ showSpinner: true })
   }
 
   const headingFocus =
@@ -97,16 +89,29 @@ export default function App() {
   return (
     <div className="min-h-screen bg-page">
       <Header
+        signedInUser={user ? { fullName: user.fullName } : null}
+        onSignOut={logout}
         onPostPropertyClick={() => setScreen('post-property')}
         onLogoClick={() => setScreen('listings')}
         onAccountClick={() => setScreen('sign-in')}
       />
       {screen === 'post-property' ? (
-        <PostPropertyScreen onBackToListings={() => setScreen('listings')} />
+        <PostPropertyScreen
+          onBackToListings={() => setScreen('listings')}
+          onListingPosted={() => loadCatalogue({ showSpinner: false })}
+        />
       ) : screen === 'sign-in' ? (
-        <SignInScreen onBackToListings={() => setScreen('listings')} onGoToSignUp={() => setScreen('sign-up')} />
+        <SignInScreen
+          onBackToListings={() => setScreen('listings')}
+          onGoToSignUp={() => setScreen('sign-up')}
+          onAuthenticated={() => setScreen('listings')}
+        />
       ) : screen === 'sign-up' ? (
-        <SignUpScreen onBackToListings={() => setScreen('listings')} onGoToSignIn={() => setScreen('sign-in')} />
+        <SignUpScreen
+          onBackToListings={() => setScreen('listings')}
+          onGoToSignIn={() => setScreen('sign-in')}
+          onAuthenticated={() => setScreen('listings')}
+        />
       ) : (
         <>
           <SearchStrip
@@ -168,8 +173,7 @@ export default function App() {
               Flats for {intent === 'buy' ? 'Sale' : 'Rent'} near {headingFocus}
             </h1>
             <p className="mt-1 text-sm text-ink-secondary">
-              Filters, search, and sort update results dynamically — listings load from a simulated API layer you can swap
-              for REST or GraphQL.
+              Filters, search, and sort update results live — listings are loaded from MongoDB via the bundled API.
             </p>
           </div>
 
@@ -234,7 +238,7 @@ export default function App() {
                 <p className="text-lg font-semibold text-ink">No listings match</p>
                 <p className="mt-2 text-sm text-ink-secondary">
                   Relax filters, remove locality chips, or clear the search keyword — currently{' '}
-                  <strong>{activeListings.length}</strong> properties loaded from the demo API.
+                  <strong>{activeListings.length}</strong> properties loaded from the server.
                 </p>
                 <button
                   type="button"

@@ -1,3 +1,4 @@
+import { getStoredToken } from './authApi'
 import type { Listing } from '../data/listings'
 import { apiUrl } from '../lib/apiUrl'
 
@@ -12,9 +13,13 @@ export async function fetchListingCatalogue(signal?: AbortSignal): Promise<Listi
 }
 
 export async function createListing(intent: ListingIntent, payload: Partial<Listing>) {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const t = getStoredToken()
+  if (t) headers.Authorization = `Bearer ${t}`
+
   const response = await fetch(apiUrl('/api/listings'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ intent, ...payload }),
   })
   if (!response.ok) {

@@ -3,9 +3,11 @@ import { createListing } from '../api/listingsApi'
 
 type Props = {
   onBackToListings: () => void
+  /** Refetch catalogue so the new listing appears on the homepage */
+  onListingPosted?: () => void | Promise<void>
 }
 
-export function PostPropertyScreen({ onBackToListings }: Props) {
+export function PostPropertyScreen({ onBackToListings, onListingPosted }: Props) {
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -47,11 +49,15 @@ export function PostPropertyScreen({ onBackToListings }: Props) {
           const city = String(form.get('city') || '').trim()
           const locality = String(form.get('locality') || '').trim()
           const amount = Number(form.get('agreementAmountINR') || 0)
+          const contactName = String(form.get('contactName') || '').trim()
+          const contactPhone = String(form.get('contactPhone') || '').trim()
 
           setLoading(true)
           setError(null)
           try {
             await createListing(intent, {
+              contactName,
+              contactPhone,
               title: String(form.get('title') || ''),
               propertyType: String(form.get('propertyType') || 'Apartment'),
               bhk: String(form.get('bhk') || '2 BHK'),
@@ -76,6 +82,7 @@ export function PostPropertyScreen({ onBackToListings }: Props) {
               relevanceScore: 80,
             })
             setSubmitted(true)
+            await onListingPosted?.()
           } catch (err) {
             setSubmitted(false)
             setError(err instanceof Error ? err.message : 'Failed to submit property')
@@ -197,6 +204,7 @@ export function PostPropertyScreen({ onBackToListings }: Props) {
             <label className="text-sm font-medium text-ink-secondary">
               Owner Name
               <input
+                name="contactName"
                 required
                 placeholder="Your name"
                 className="mt-1 w-full rounded-md border border-border-subtle bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-600 focus:ring-2 focus:ring-brand-600/25 focus:outline-none"
@@ -205,6 +213,7 @@ export function PostPropertyScreen({ onBackToListings }: Props) {
             <label className="text-sm font-medium text-ink-secondary">
               Phone Number
               <input
+                name="contactPhone"
                 required
                 placeholder="+91 9XXXXXXXXX"
                 className="mt-1 w-full rounded-md border border-border-subtle bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-600 focus:ring-2 focus:ring-brand-600/25 focus:outline-none"

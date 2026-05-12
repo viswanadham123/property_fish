@@ -34,6 +34,39 @@ function publicUser(user) {
   }
 }
 
+function parseBearer(req) {
+  const raw = req.headers.authorization
+  if (!raw || typeof raw !== 'string' || !raw.startsWith('Bearer ')) return null
+  return raw.slice('Bearer '.length).trim()
+}
+
+function jwtSubjectFromRequest(req) {
+  const token = parseBearer(req)
+  if (!token) return null
+  try {
+    const payload = jwt.verify(token, JWT_SECRET)
+    const sub = payload?.sub
+    return sub ? String(sub) : null
+  } catch {
+    return null
+  }
+}
+
+async function attachUserMaybe(req, _res, next) {
+  const sub = jwtSubjectFromRequest(req)
+  if (!sub) {
+    req.accountUser = null
+    return next()
+  }
+  try {
+    const user = await User.findById(sub)
+    req.accountUser = user || null
+  } catch {
+    req.accountUser = null
+  }
+  next()
+}
+
 async function start() {
   if (!MONGODB_URI) {
     // eslint-disable-next-line no-console
@@ -58,6 +91,19 @@ async function start() {
     res.json({ ok: true, db: mongoose.connection.readyState === 1 })
   })
 
+  app.get('/api/auth/me', async (req, res) => {
+    const sub = jwtSubjectFromRequest(req)
+    if (!sub) return res.status(401).json({ message: 'Not signed in' })
+
+    try {
+      const user = await User.findById(sub)
+      if (!user) return res.status(401).json({ message: 'Session no longer valid' })
+      res.json({ user: publicUser(user) })
+    } catch (error) {
+      res.status(500).json({ message: 'Could not load account', error: String(error) })
+    }
+  })
+
   app.get('/api/listings', async (_req, res) => {
     try {
       const docs = await Listing.find().sort({ relevanceScore: -1 })
@@ -69,7 +115,7 @@ async function start() {
     }
   })
 
-  app.post('/api/listings', async (req, res) => {
+  app.post('/api/listings', attachUserMaybe, async (req, res) => {
     try {
       const { intent = 'buy', ...payload } = req.body
       if (!payload.title || !payload.location) {
@@ -77,7 +123,10 @@ async function start() {
       }
 
       const record = {
+        postedBy: req.accountUser ? req.accountUser._id : null,
         intent: intent === 'rent' ? 'rent' : 'buy',
+        contactName: String(payload.contactName || '').slice(0, 120),
+        contactPhone: String(payload.contactPhone || '').slice(0, 40),
         title: payload.title,
         agreementLabel:
           payload.agreementLabel ||

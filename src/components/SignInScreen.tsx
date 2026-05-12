@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { signIn } from '../api/authApi'
+import { useAuth } from '../context/AuthContext'
 
 type Props = {
   onBackToListings: () => void
   onGoToSignUp: () => void
+  onAuthenticated?: () => void
 }
 
-export function SignInScreen({ onBackToListings, onGoToSignUp }: Props) {
+export function SignInScreen({ onBackToListings, onGoToSignUp, onAuthenticated }: Props) {
+  const { login } = useAuth()
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -19,7 +22,7 @@ export function SignInScreen({ onBackToListings, onGoToSignUp }: Props) {
 
         {submitted ? (
           <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">
-            Signed in successfully (demo flow).
+            Signed in successfully.
           </p>
         ) : null}
 
@@ -36,8 +39,10 @@ export function SignInScreen({ onBackToListings, onGoToSignUp }: Props) {
             setLoading(true)
             setError(null)
             try {
-              await signIn({ email, password })
+              const data = await signIn({ email, password })
+              login(data.token, data.user)
               setSubmitted(true)
+              onAuthenticated?.()
             } catch (err) {
               setSubmitted(false)
               setError(err instanceof Error ? err.message : 'Sign in failed')

@@ -12,7 +12,11 @@ const userSchema = new mongoose.Schema(
 
 const listingSchema = new mongoose.Schema(
   {
+    postedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
     intent: { type: String, enum: ['buy', 'rent'], required: true, index: true },
+    /** Shown internally / moderation only — omit from public API responses */
+    contactName: { type: String, default: '' },
+    contactPhone: { type: String, default: '' },
     title: { type: String, required: true },
     agreementLabel: { type: String, default: '' },
     agreementAmountINR: { type: Number, default: 0 },

@@ -1,6 +1,9 @@
 import type { Availability, Furnishing, PropertyKind, TenantKind } from '../types/filters'
 
 export type Listing = {
+  /** Submitted when posting — stored server-side, not exposed in catalogue JSON */
+  contactName?: string
+  contactPhone?: string
   id: string
   title: string
   agreementLabel: string
