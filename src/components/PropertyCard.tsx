@@ -1,0 +1,163 @@
+import type { Listing } from '../data/listings'
+
+type Props = {
+  listing: Listing
+}
+
+function parseAgreement(label: string) {
+  const suffix = ' agreement details'
+  const lower = label.toLowerCase()
+  if (lower.endsWith(suffix)) {
+    return {
+      price: label.slice(0, label.length - suffix.length),
+      showAgreementLink: true as const,
+    }
+  }
+  return { price: label, showAgreementLink: false as const }
+}
+
+function CheckIcon() {
+  return (
+    <svg className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path
+        fillRule="evenodd"
+        d="M16.704 5.29a1 1 0 010 1.415l-7.469 7.47a1 1 0 01-1.415 0L3.291 11.647a1 1 0 111.415-1.414l3.117 3.117 6.762-6.762a1 1 0 011.415 0z"
+        clipRule="evenodd"
+      />
+    </svg>
+  )
+}
+
+export function PropertyCard({ listing }: Props) {
+  const agreement = parseAgreement(listing.agreementLabel)
+
+  return (
+    <article className="overflow-hidden rounded-md border border-border-subtle bg-surface shadow-[0_1px_6px_rgba(45,45,45,0.06)] transition hover:shadow-[0_5px_14px_rgba(45,45,45,0.1)] md:flex md:max-w-none">
+      <div className="relative md:w-[260px] md:shrink-0">
+        <div
+          className={`relative aspect-[16/10] bg-gradient-to-br md:h-full md:min-h-[185px] md:aspect-auto ${listing.imageTone}`}
+        >
+          <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
+          <div className="absolute bottom-3 left-3 flex size-10 items-center justify-center rounded-full border-2 border-white bg-surface-muted shadow-md ring-2 ring-white/80">
+            <span className="text-xs font-bold text-ink-secondary">P</span>
+          </div>
+          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
+            {[0, 1, 2].map((i) => (
+              <span key={i} className={`h-1.5 w-1.5 rounded-full ${i === 0 ? 'bg-white' : 'bg-white/45'}`} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex min-w-0 flex-1 flex-col gap-2.5 p-3.5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className="text-[29px] leading-none font-bold text-ink">{agreement.price}</span>
+              {agreement.showAgreementLink ? (
+                <button type="button" className="text-sm font-semibold text-brand-600 hover:underline">
+                  agreement details
+                </button>
+              ) : null}
+            </p>
+            <h3 className="mt-1 text-base font-bold text-ink">{listing.title}</h3>
+          </div>
+          <div className="flex shrink-0 gap-1">
+            <button
+              type="button"
+              className="rounded-full border border-border-subtle p-2 text-ink-muted hover:bg-surface-muted hover:text-brand-600"
+              aria-label="Save listing"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 116.364 6.364L12 21.364l-7.682-7.682a4.5 4.5 0 010-6.364z"
+                />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="rounded-full border border-border-subtle p-2 text-ink-muted hover:bg-surface-muted hover:text-brand-600"
+              aria-label="Share listing"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 5.314 9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186Zm0-12.814a2.25 2.25 0 103.933-2.184 2.25 2.25 0 00-3.933 2.184Z"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <dl className="grid grid-cols-3 gap-3 rounded-md bg-surface-muted px-3 py-3 text-sm">
+          <div>
+            <dt className="flex items-center gap-1 text-xs font-medium text-ink-muted">
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 12.414a2 2 0 10-2.828 2.828l4.243 4.243m0 0L21 21M15 11a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+              Location
+            </dt>
+            <dd className="mt-1 font-semibold text-ink">{listing.location}</dd>
+          </div>
+          <div>
+            <dt className="flex items-center gap-1 text-xs font-medium text-ink-muted">
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-6v6m4-9v9M5 5h14l-1 14H6L5 5z" />
+              </svg>
+              Bathroom
+            </dt>
+            <dd className="mt-1 font-semibold text-ink">{listing.bathrooms}</dd>
+          </div>
+          <div>
+            <dt className="flex items-center gap-1 text-xs font-medium text-ink-muted">
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              Parking
+            </dt>
+            <dd className="mt-1 font-semibold text-ink">{listing.parking}</dd>
+          </div>
+        </dl>
+
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wide text-ink-muted">Special Highlights</p>
+          <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+            {listing.highlights.map((h) => (
+              <li key={h} className="flex items-start gap-2 text-sm font-medium text-ink-secondary">
+                <CheckIcon />
+                <span>{h}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <p className="line-clamp-2 text-sm leading-relaxed text-ink-secondary">
+          {listing.description}{' '}
+          <button type="button" className="font-bold text-ink hover:text-brand-600">
+            More
+          </button>
+        </p>
+
+        <div className="mt-auto flex flex-wrap gap-2 border-t border-border-subtle pt-3">
+          <button
+            type="button"
+            className="inline-flex flex-1 items-center justify-center rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-700 md:flex-none"
+          >
+            View details
+          </button>
+          <button
+            type="button"
+            className="inline-flex flex-1 items-center justify-center rounded-md border border-border-subtle px-3 py-2 text-sm font-semibold text-ink-secondary hover:bg-surface-muted md:flex-none"
+          >
+            Contact owner
+          </button>
+        </div>
+      </div>
+    </article>
+  )
+}
