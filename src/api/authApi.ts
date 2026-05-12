@@ -1,4 +1,4 @@
-const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000'
+import { apiUrl } from '../lib/apiUrl'
 
 type SignInPayload = {
   email: string
@@ -18,7 +18,7 @@ async function readError(response: Response, fallback: string) {
 }
 
 export async function signIn(payload: SignInPayload) {
-  const response = await fetch(`${apiBase}/api/auth/signin`, {
+  const response = await fetch(apiUrl('/api/auth/signin'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -32,7 +32,7 @@ export async function signIn(payload: SignInPayload) {
 }
 
 export async function signUp(payload: SignUpPayload) {
-  const response = await fetch(`${apiBase}/api/auth/signup`, {
+  const response = await fetch(apiUrl('/api/auth/signup'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
