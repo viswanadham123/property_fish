@@ -8,6 +8,7 @@ import { ListingSkeleton } from './components/ListingSkeleton'
 import { PostPropertyScreen } from './components/PostPropertyScreen'
 import { SignInScreen } from './components/SignInScreen'
 import { SignUpScreen } from './components/SignUpScreen'
+import { ProfileScreen } from './components/ProfileScreen'
 import { fetchListingCatalogue, type ListingCatalogue, type ListingIntent } from './api/listingsApi'
 import { filterListings, sortListings, type SortMode } from './lib/filterAndSort'
 import { DEFAULT_FILTERS, type FilterState } from './types/filters'
@@ -15,10 +16,10 @@ import { useAuth } from './context/AuthContext'
 
 const REGION_CATALOGUE_TOTAL = 1581
 const PAGE_CHUNK = 6
-type ScreenMode = 'listings' | 'post-property' | 'sign-in' | 'sign-up'
+type ScreenMode = 'listings' | 'post-property' | 'sign-in' | 'sign-up' | 'profile'
 
 export default function App() {
-  const { user, logout } = useAuth()
+  const { user, logout, ready } = useAuth()
   const [catalogue, setCatalogue] = useState<ListingCatalogue>({ buy: [], rent: [] })
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -31,11 +32,22 @@ export default function App() {
 
   const [draftQuery, setDraftQuery] = useState('')
   const [committedQuery, setCommittedQuery] = useState('')
-  const [localityTags, setLocalityTags] = useState<string[]>(['Ghaziabad'])
+  const [localityTags, setLocalityTags] = useState<string[]>([])
 
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list')
   const [visibleCount, setVisibleCount] = useState(PAGE_CHUNK)
   const [screen, setScreen] = useState<ScreenMode>('listings')
+
+  const handleSignOut = useCallback(() => {
+    logout()
+    setScreen('sign-in')
+  }, [logout])
+
+  /** After session check: guests land on sign-in; returning users stay on listings (or current flow). */
+  useEffect(() => {
+    if (!ready) return
+    if (!user) setScreen('sign-in')
+  }, [ready, user])
 
   const loadCatalogue = useCallback(async (opts?: { signal?: AbortSignal; showSpinner?: boolean }) => {
     const showSpinner = opts?.showSpinner !== false
@@ -77,25 +89,65 @@ export default function App() {
 
   function resetFilters() {
     setFilters({ ...DEFAULT_FILTERS })
+    setLocalityTags([])
+    setCommittedQuery('')
+    setDraftQuery('')
+    setSortBy('relevance')
   }
 
   function retryFetch() {
     void loadCatalogue({ showSpinner: true })
   }
 
+  function submitSearch() {
+    const t = draftQuery.trim()
+    if (t) {
+      setLocalityTags((prev) => {
+        const low = t.toLowerCase()
+        if (prev.some((x) => x.toLowerCase() === low)) return prev
+        return [...prev, t]
+      })
+    }
+    setCommittedQuery('')
+    setDraftQuery('')
+  }
+
+  const removeLocalityTag = useCallback(
+    (tag: string) => {
+      setLocalityTags((tags) => tags.filter((t) => t !== tag))
+      void loadCatalogue({ showSpinner: false })
+    },
+    [loadCatalogue],
+  )
+
   const headingFocus =
     localityTags.join(', ') || committedQuery.trim() || 'Dwarka Mor, New Delhi'
+
+  if (!ready) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-page">
+        <div
+          className="h-9 w-9 animate-spin rounded-full border-2 border-brand-600 border-t-transparent"
+          aria-hidden
+        />
+        <p className="text-sm text-ink-secondary">Loading…</p>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-page">
       <Header
         signedInUser={user ? { fullName: user.fullName } : null}
-        onSignOut={logout}
+        onProfileClick={user ? () => setScreen('profile') : undefined}
+        onSignOut={handleSignOut}
         onPostPropertyClick={() => setScreen('post-property')}
         onLogoClick={() => setScreen('listings')}
         onAccountClick={() => setScreen('sign-in')}
       />
-      {screen === 'post-property' ? (
+      {screen === 'profile' && user ? (
+        <ProfileScreen user={user} onBack={() => setScreen('listings')} />
+      ) : screen === 'post-property' ? (
         <PostPropertyScreen
           onBackToListings={() => setScreen('listings')}
           onListingPosted={() => loadCatalogue({ showSpinner: false })}
@@ -119,9 +171,9 @@ export default function App() {
             onIntentChange={setIntent}
             draftQuery={draftQuery}
             onDraftQueryChange={setDraftQuery}
-            onSubmitSearch={() => setCommittedQuery(draftQuery.trim())}
+            onSubmitSearch={submitSearch}
             localityTags={localityTags}
-            onRemoveLocalityTag={(tag) => setLocalityTags((tags) => tags.filter((t) => t !== tag))}
+            onRemoveLocalityTag={removeLocalityTag}
             viewMode={viewMode}
             onViewModeChange={setViewMode}
           />
@@ -245,9 +297,6 @@ export default function App() {
                   className="mt-4 rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
                   onClick={() => {
                     resetFilters()
-                    setCommittedQuery('')
-                    setDraftQuery('')
-                    setLocalityTags([])
                   }}
                 >
                   Reset search &amp; filters

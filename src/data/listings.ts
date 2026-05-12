@@ -1,10 +1,13 @@
 import type { Availability, Furnishing, PropertyKind, TenantKind } from '../types/filters'
 
+export type ListingIntent = 'buy' | 'rent'
+
 export type Listing = {
   /** Submitted when posting — stored server-side, not exposed in catalogue JSON */
   contactName?: string
   contactPhone?: string
   id: string
+  intent?: ListingIntent
   title: string
   agreementLabel: string
   agreementAmountINR: number

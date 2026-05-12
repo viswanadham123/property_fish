@@ -6,6 +6,10 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     phone: { type: String, default: '' },
     passwordHash: { type: String, required: true },
+    favoriteListingIds: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Listing' }],
+      default: () => [],
+    },
   },
   { timestamps: true },
 )
@@ -47,6 +51,7 @@ export function serializeListing(doc) {
   const o = doc.toObject?.() ?? doc
   return {
     id: String(o._id),
+    intent: o.intent === 'rent' ? 'rent' : 'buy',
     title: o.title,
     agreementLabel: o.agreementLabel,
     agreementAmountINR: o.agreementAmountINR,

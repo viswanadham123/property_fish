@@ -25,6 +25,7 @@ type SignUpPayload = {
 export type AuthResponse = {
   token: string
   user: PublicUser
+  favoriteListingIds?: string[]
 }
 
 async function readError(response: Response, fallback: string) {
@@ -52,7 +53,7 @@ export function authHeaders(): HeadersInit {
   return t ? { Authorization: `Bearer ${t}` } : {}
 }
 
-export async function fetchMe(signal?: AbortSignal): Promise<{ user: PublicUser }> {
+export async function fetchMe(signal?: AbortSignal): Promise<{ user: PublicUser; favoriteListingIds: string[] }> {
   const response = await fetch(apiUrl('/api/auth/me'), {
     headers: { ...authHeaders() },
     signal,
@@ -62,7 +63,11 @@ export async function fetchMe(signal?: AbortSignal): Promise<{ user: PublicUser 
     throw new Error(await readError(response, 'Session expired'))
   }
 
-  return response.json()
+  const data = await response.json()
+  return {
+    user: data.user,
+    favoriteListingIds: data.favoriteListingIds ?? [],
+  }
 }
 
 export async function signIn(payload: SignInPayload): Promise<AuthResponse> {

@@ -1,4 +1,5 @@
 import type { Listing } from '../data/listings'
+import { useAuth } from '../context/AuthContext'
 
 type Props = {
   listing: Listing
@@ -29,7 +30,10 @@ function CheckIcon() {
 }
 
 export function PropertyCard({ listing }: Props) {
+  const { user, favoriteListingIds, toggleFavorite } = useAuth()
   const agreement = parseAgreement(listing.agreementLabel)
+  const isFavorite = favoriteListingIds.includes(listing.id)
+  const canFavorite = Boolean(user)
 
   return (
     <article className="overflow-hidden rounded-md border border-border-subtle bg-surface shadow-[0_1px_6px_rgba(45,45,45,0.06)] transition hover:shadow-[0_5px_14px_rgba(45,45,45,0.1)] md:flex md:max-w-none">
@@ -65,29 +69,32 @@ export function PropertyCard({ listing }: Props) {
           <div className="flex shrink-0 gap-1">
             <button
               type="button"
-              className="rounded-full border border-border-subtle p-2 text-ink-muted hover:bg-surface-muted hover:text-brand-600"
-              aria-label="Save listing"
+              disabled={!canFavorite}
+              title={canFavorite ? (isFavorite ? 'Remove from favorites' : 'Save to favorites') : 'Sign in to save favorites'}
+              onClick={() => void toggleFavorite(listing.id)}
+              className={
+                'rounded-full border p-2 transition ' +
+                (canFavorite
+                  ? isFavorite
+                    ? 'border-brand-600 bg-brand-50 text-brand-700 hover:bg-brand-100'
+                    : 'border-border-subtle text-ink-muted hover:bg-surface-muted hover:text-brand-600'
+                  : 'cursor-not-allowed border-border-subtle text-ink-muted opacity-50')
+              }
+              aria-label={isFavorite ? 'Remove from favorites' : 'Save listing'}
+              aria-pressed={isFavorite}
             >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg
+                className="h-5 w-5"
+                viewBox="0 0 24 24"
+                fill={isFavorite ? 'currentColor' : 'none'}
+                stroke="currentColor"
+                aria-hidden
+              >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
                   d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 116.364 6.364L12 21.364l-7.682-7.682a4.5 4.5 0 010-6.364z"
-                />
-              </svg>
-            </button>
-            <button
-              type="button"
-              className="rounded-full border border-border-subtle p-2 text-ink-muted hover:bg-surface-muted hover:text-brand-600"
-              aria-label="Share listing"
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 5.314 9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186Zm0-12.814a2.25 2.25 0 103.933-2.184 2.25 2.25 0 00-3.933 2.184Z"
                 />
               </svg>
             </button>

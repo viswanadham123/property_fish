@@ -53,7 +53,7 @@ export function SearchStrip({
             </button>
           ))}
 
-          <label className="relative hidden min-w-[160px] flex-1 items-center lg:flex lg:min-w-[280px]">
+          <label className="relative flex min-w-0 flex-1 items-center sm:min-w-[160px] lg:min-w-[280px]">
             <span className="sr-only">Search locality</span>
             <input
               type="search"

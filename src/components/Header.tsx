@@ -8,6 +8,8 @@ type Props = {
   onPostPropertyClick?: () => void
   onLogoClick?: () => void
   onAccountClick?: () => void
+  /** Signed-in: open profile (initials / name). */
+  onProfileClick?: () => void
   onSignOut?: () => void
   signedInUser?: HeaderUserBrief | null
 }
@@ -22,6 +24,7 @@ export function Header({
   onPostPropertyClick,
   onLogoClick,
   onAccountClick,
+  onProfileClick,
   onSignOut,
   signedInUser,
 }: Props) {
@@ -58,16 +61,23 @@ export function Header({
         <div className="flex flex-wrap items-center gap-2.5">
           {signedInUser ? (
             <div className="flex items-center gap-2">
-              <span className="hidden max-w-[10rem] truncate text-sm font-medium text-ink-secondary sm:inline" title={signedInUser.fullName}>
+              <button
+                type="button"
+                onClick={onProfileClick}
+                className="hidden max-w-[10rem] truncate text-left text-sm font-medium text-ink-secondary hover:text-brand-600 sm:inline"
+                title="My profile"
+              >
                 Hi, {signedInUser.fullName.split(/\s+/)[0]}
-              </span>
-              <span
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-border-subtle bg-surface-muted text-xs font-bold text-[#3c2a7f]"
-                aria-hidden
-                title={signedInUser.fullName}
+              </button>
+              <button
+                type="button"
+                onClick={onProfileClick}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-border-subtle bg-surface-muted text-xs font-bold text-[#3c2a7f] hover:border-brand-600/40 hover:text-brand-700"
+                title={`Profile — ${signedInUser.fullName}`}
+                aria-label="Open profile and favorites"
               >
                 {initials(signedInUser.fullName)}
-              </span>
+              </button>
               {onSignOut ? (
                 <button
                   type="button"

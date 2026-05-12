@@ -73,7 +73,12 @@ export function FilterSidebar({ mobileOpen, onCloseMobile, filters, onFiltersCha
                 More Filters
               </button>
             </div>
-            <button type="button" className="pb-3 text-xs font-semibold text-brand-600 hover:underline" onClick={onReset}>
+            <button
+              type="button"
+              title="Clears sidebar filters, locality chips, and search"
+              className="pb-3 text-xs font-semibold text-brand-600 hover:underline"
+              onClick={onReset}
+            >
               Reset
             </button>
           </div>

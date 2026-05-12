@@ -1,4 +1,4 @@
-import { getStoredToken } from './authApi'
+import { authHeaders, getStoredToken } from './authApi'
 import type { Listing } from '../data/listings'
 import { apiUrl } from '../lib/apiUrl'
 
@@ -9,6 +9,19 @@ export type ListingCatalogue = Record<ListingIntent, Listing[]>
 export async function fetchListingCatalogue(signal?: AbortSignal): Promise<ListingCatalogue> {
   const response = await fetch(apiUrl('/api/listings'), { signal })
   if (!response.ok) throw new Error(`Failed to fetch listings: ${response.status}`)
+  return response.json()
+}
+
+/** Authenticated: properties you posted (buy / rent buckets, same as public catalogue). */
+export async function fetchMyListingCatalogue(signal?: AbortSignal): Promise<ListingCatalogue> {
+  const response = await fetch(apiUrl('/api/me/listings'), {
+    headers: { ...authHeaders() },
+    signal,
+  })
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({ message: 'Failed to load your listings' }))
+    throw new Error(data.message || `Failed to load your listings: ${response.status}`)
+  }
   return response.json()
 }
 

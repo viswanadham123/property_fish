@@ -42,7 +42,7 @@ export function SignUpScreen({ onBackToListings, onGoToSignIn, onAuthenticated }
             setError(null)
             try {
               const data = await signUp({ fullName, email, phone, password })
-              login(data.token, data.user)
+              login(data.token, data.user, data.favoriteListingIds)
               setSubmitted(true)
               onAuthenticated?.()
             } catch (err) {

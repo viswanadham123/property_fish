@@ -87,6 +87,23 @@ function corsOptionsFromEnv() {
   }
 }
 
+function favoriteListingIdsForResponse(user) {
+  return (user.favoriteListingIds || []).map((id) => String(id))
+}
+
+async function requireAuth(req, res, next) {
+  const sub = jwtSubjectFromRequest(req)
+  if (!sub) return res.status(401).json({ message: 'Sign in required' })
+  try {
+    const user = await User.findById(sub)
+    if (!user) return res.status(401).json({ message: 'Invalid session' })
+    req.accountUser = user
+    next()
+  } catch {
+    res.status(500).json({ message: 'Auth check failed' })
+  }
+}
+
 async function start() {
   if (!MONGODB_URI) {
     // eslint-disable-next-line no-console
@@ -133,7 +150,10 @@ async function start() {
     try {
       const user = await User.findById(sub)
       if (!user) return res.status(401).json({ message: 'Session no longer valid' })
-      res.json({ user: publicUser(user) })
+      res.json({
+        user: publicUser(user),
+        favoriteListingIds: favoriteListingIdsForResponse(user),
+      })
     } catch (error) {
       res.status(500).json({ message: 'Could not load account', error: String(error) })
     }
@@ -153,7 +173,8 @@ async function start() {
   app.post('/api/listings', attachUserMaybe, async (req, res) => {
     try {
       const { intent = 'buy', ...payload } = req.body
-      if (!payload.title || !payload.location) {
+      const location = String(payload.location || '').trim()
+      if (!payload.title || !location) {
         return res.status(400).json({ message: 'title and location are required' })
       }
 
@@ -163,6 +184,7 @@ async function start() {
         contactName: String(payload.contactName || '').slice(0, 120),
         contactPhone: String(payload.contactPhone || '').slice(0, 40),
         title: payload.title,
+        location,
         agreementLabel:
           payload.agreementLabel ||
           `₹${Number(payload.agreementAmountINR || 0).toLocaleString('en-IN')} agreement details`,
@@ -211,6 +233,7 @@ async function start() {
       res.status(201).json({
         token,
         user: publicUser(user),
+        favoriteListingIds: favoriteListingIdsForResponse(user),
       })
     } catch (error) {
       res.status(500).json({ message: 'Signup failed', error: String(error) })
@@ -232,9 +255,69 @@ async function start() {
       res.json({
         token,
         user: publicUser(user),
+        favoriteListingIds: favoriteListingIdsForResponse(user),
       })
     } catch (error) {
       res.status(500).json({ message: 'Signin failed', error: String(error) })
+    }
+  })
+
+  app.get('/api/me/favorites', requireAuth, async (req, res) => {
+    try {
+      const user = await User.findById(req.accountUser._id).lean()
+      const ids = user.favoriteListingIds || []
+      if (ids.length === 0) return res.json({ listings: [] })
+
+      const docs = await Listing.find({ _id: { $in: ids } }).lean()
+      const byId = new Map(docs.map((d) => [String(d._id), d]))
+      const ordered = ids.map((id) => byId.get(String(id))).filter(Boolean).map((d) => serializeListing(d))
+      res.json({ listings: ordered })
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to load favorites', error: String(error) })
+    }
+  })
+
+  /** Listings this user posted while authenticated (`postedBy` = you). Shape matches GET /api/listings. */
+  app.get('/api/me/listings', requireAuth, async (req, res) => {
+    try {
+      const uid = req.accountUser._id
+      const docs = await Listing.find({ postedBy: uid }).sort({ relevanceScore: -1 }).lean()
+      const buy = docs.filter((d) => d.intent === 'buy').map((d) => serializeListing(d))
+      const rent = docs.filter((d) => d.intent === 'rent').map((d) => serializeListing(d))
+      res.json({ buy, rent })
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to load your listings', error: String(error) })
+    }
+  })
+
+  app.post('/api/me/favorites', requireAuth, async (req, res) => {
+    try {
+      const listingId = String(req.body?.listingId || '').trim()
+      if (!listingId || !mongoose.isValidObjectId(listingId)) {
+        return res.status(400).json({ message: 'Valid listingId is required' })
+      }
+      const exists = await Listing.exists({ _id: listingId })
+      if (!exists) return res.status(404).json({ message: 'Listing not found' })
+
+      await User.updateOne({ _id: req.accountUser._id }, { $addToSet: { favoriteListingIds: listingId } })
+      const updated = await User.findById(req.accountUser._id)
+      res.json({ favoriteListingIds: favoriteListingIdsForResponse(updated) })
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to save favorite', error: String(error) })
+    }
+  })
+
+  app.delete('/api/me/favorites/:listingId', requireAuth, async (req, res) => {
+    try {
+      const listingId = String(req.params.listingId || '').trim()
+      if (!listingId || !mongoose.isValidObjectId(listingId)) {
+        return res.status(400).json({ message: 'Valid listingId is required' })
+      }
+      await User.updateOne({ _id: req.accountUser._id }, { $pull: { favoriteListingIds: listingId } })
+      const updated = await User.findById(req.accountUser._id)
+      res.json({ favoriteListingIds: favoriteListingIdsForResponse(updated) })
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to remove favorite', error: String(error) })
     }
   })
 
