@@ -12,6 +12,7 @@ dotenv.config()
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const STORE_PATH = path.join(__dirname, 'data', 'store.json')
+const DIST_PATH = path.join(__dirname, '..', 'dist')
 const PORT = Number(process.env.PORT || 4000)
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me'
 
@@ -136,6 +137,12 @@ app.post('/api/auth/signin', async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: 'Signin failed', error: String(error) })
   }
+})
+
+// Serve built frontend from the same service in production.
+app.use(express.static(DIST_PATH))
+app.get(/^(?!\/api).*/, (_req, res) => {
+  res.sendFile(path.join(DIST_PATH, 'index.html'))
 })
 
 app.listen(PORT, () => {
