@@ -3,6 +3,7 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import rateLimit from 'express-rate-limit'
 import helmet from 'helmet'
+import { randomBytes } from 'node:crypto'
 import path from 'node:path'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
@@ -20,19 +21,36 @@ const DIST_PATH = path.join(__dirname, '..', 'dist')
 const HOST = process.env.HOST || '0.0.0.0'
 const PORT = Number(process.env.PORT || 4000)
 const isProduction = process.env.NODE_ENV === 'production'
-const JWT_SECRET_RAW = (process.env.JWT_SECRET || '').trim()
+/** Prefer JWT_SECRET; SESSION_SECRET is a common Render / Heroku alias. */
+const JWT_SECRET_RAW = (process.env.JWT_SECRET || process.env.SESSION_SECRET || '').trim()
 const JWT_SECRET = JWT_SECRET_RAW || (!isProduction ? 'dev-secret-change-me' : '')
 
 if (isProduction) {
   if (!JWT_SECRET || JWT_SECRET.length < 32) {
+    const n = JWT_SECRET_RAW.length
     // eslint-disable-next-line no-console
-    console.error('Production requires JWT_SECRET (random string, at least 32 characters).')
+    console.error(
+      'Cannot start API: in production, JWT signing requires a strong secret (JWT_SECRET or SESSION_SECRET, min 32 characters).',
+    )
+    if (JWT_SECRET_RAW) {
+      // eslint-disable-next-line no-console
+      console.error(`Your secret is ${n} character(s); use at least 32 (e.g. openssl rand -base64 32).`)
+    } else {
+      // eslint-disable-next-line no-console
+      console.error(
+        'No secret found in process.env. On Render: open your Web Service → Environment → add JWT_SECRET (repo .env is not used for production secrets).',
+      )
+    }
+    // eslint-disable-next-line no-console
+    console.error('Generate one locally: openssl rand -base64 32')
     process.exit(1)
   }
 }
 
 const MONGODB_URI = (process.env.MONGODB_URI || '').trim()
 const DATABASE_NAME = process.env.MONGODB_DB_NAME || 'propertyfish'
+/** Web app origin (no trailing slash) for password-reset links in non-production responses / logs. */
+const PUBLIC_APP_URL = (process.env.PUBLIC_APP_URL || process.env.FRONTEND_URL || '').replace(/\/$/, '')
 
 /** Do not leak stack traces or DB errors to API clients in production. */
 function send500(res, message, error) {
@@ -174,6 +192,13 @@ async function start() {
     legacyHeaders: false,
     message: { message: 'Too many sign-in attempts from this network. Try again later.' },
   })
+  const forgotPasswordLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 8,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: 'Too many password reset attempts from this network. Try again later.' },
+  })
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true, db: mongoose.connection.readyState === 1 })
@@ -237,7 +262,7 @@ async function start() {
       const rent = docs.filter((d) => d.intent === 'rent').map((d) => serializeListing(d))
       res.json({ buy, rent })
     } catch (error) {
-      send500(res, 'Failed to load listings', error)
+      send500(res, 'Failed to load properties', error)
     }
   })
 
@@ -246,13 +271,13 @@ async function start() {
     try {
       const listingId = String(req.params.listingId || '').trim()
       if (!listingId || !mongoose.isValidObjectId(listingId)) {
-        return res.status(400).json({ message: 'Valid listing id is required' })
+        return res.status(400).json({ message: 'Valid property id is required' })
       }
       const doc = await Listing.findById(listingId)
-      if (!doc) return res.status(404).json({ message: 'Listing not found' })
+      if (!doc) return res.status(404).json({ message: 'Property not found' })
       res.json(serializeListing(doc))
     } catch (error) {
-      send500(res, 'Failed to load listing', error)
+      send500(res, 'Failed to load property', error)
     }
   })
 
@@ -297,7 +322,7 @@ async function start() {
       const saved = await Listing.create(record)
       res.status(201).json(serializeListing(saved))
     } catch (error) {
-      send500(res, 'Failed to create listing', error)
+      send500(res, 'Failed to create property', error)
     }
   })
 
@@ -354,6 +379,74 @@ async function start() {
     }
   })
 
+  app.post('/api/auth/forgot-password', forgotPasswordLimiter, async (req, res) => {
+    const generic = { message: 'If that email is registered, you will receive password reset instructions shortly.' }
+    try {
+      const email = String(req.body?.email || '')
+        .trim()
+        .toLowerCase()
+      if (!email || !email.includes('@')) {
+        return res.status(400).json({ message: 'A valid email is required' })
+      }
+
+      const user = await User.findOne({ email })
+      if (!user) {
+        return res.json(generic)
+      }
+
+      const rawToken = randomBytes(32).toString('hex')
+      user.passwordResetToken = rawToken
+      user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000)
+      await user.save()
+
+      const origin = PUBLIC_APP_URL || 'http://localhost:5173'
+      const resetPath = `${origin}/?reset=${encodeURIComponent(rawToken)}`
+
+      if (!isProduction) {
+        // eslint-disable-next-line no-console
+        console.info(`[password-reset] ${email}: ${resetPath}`)
+      }
+
+      if (!isProduction) {
+        return res.json({ ...generic, devResetUrl: resetPath })
+      }
+
+      return res.json(generic)
+    } catch (error) {
+      send500(res, 'Password reset request failed', error)
+    }
+  })
+
+  app.post('/api/auth/reset-password', forgotPasswordLimiter, async (req, res) => {
+    try {
+      const token = String(req.body?.token || '').trim()
+      const password = String(req.body?.password || '')
+      if (!token || token.length < 32) {
+        return res.status(400).json({ message: 'A valid reset token is required' })
+      }
+      if (password.length < 10) {
+        return res.status(400).json({ message: 'Password must be at least 10 characters' })
+      }
+
+      const user = await User.findOne({
+        passwordResetToken: token,
+        passwordResetExpires: { $gt: new Date() },
+      })
+      if (!user) {
+        return res.status(400).json({ message: 'Invalid or expired reset link. Request a new reset from sign in.' })
+      }
+
+      user.passwordHash = await bcrypt.hash(password, 12)
+      user.passwordResetToken = null
+      user.passwordResetExpires = null
+      await user.save()
+
+      res.json({ message: 'Password updated. You can sign in with your new password.' })
+    } catch (error) {
+      send500(res, 'Password reset failed', error)
+    }
+  })
+
   app.get('/api/me/favorites', requireAuth, async (req, res) => {
     try {
       const user = await User.findById(req.accountUser._id).lean()
@@ -378,7 +471,7 @@ async function start() {
       const rent = docs.filter((d) => d.intent === 'rent').map((d) => serializeListingForOwner(d))
       res.json({ buy, rent })
     } catch (error) {
-      send500(res, 'Failed to load your listings', error)
+      send500(res, 'Failed to load your properties', error)
     }
   })
 
@@ -386,13 +479,13 @@ async function start() {
     try {
       const listingId = String(req.params.listingId || '').trim()
       if (!listingId || !mongoose.isValidObjectId(listingId)) {
-        return res.status(400).json({ message: 'Valid listing id is required' })
+        return res.status(400).json({ message: 'Valid property id is required' })
       }
 
       const doc = await Listing.findById(listingId)
-      if (!doc) return res.status(404).json({ message: 'Listing not found' })
+      if (!doc) return res.status(404).json({ message: 'Property not found' })
       if (!doc.postedBy || String(doc.postedBy) !== String(req.accountUser._id)) {
-        return res.status(403).json({ message: 'You can only edit your own listings' })
+        return res.status(403).json({ message: 'You can only edit your own properties' })
       }
 
       const payload = req.body || {}
@@ -433,7 +526,7 @@ async function start() {
       await doc.save()
       res.json(serializeListing(doc))
     } catch (error) {
-      send500(res, 'Failed to update listing', error)
+      send500(res, 'Failed to update property', error)
     }
   })
 
@@ -441,10 +534,10 @@ async function start() {
     try {
       const listingId = String(req.body?.listingId || '').trim()
       if (!listingId || !mongoose.isValidObjectId(listingId)) {
-        return res.status(400).json({ message: 'Valid listingId is required' })
+        return res.status(400).json({ message: 'Valid property id is required' })
       }
       const exists = await Listing.exists({ _id: listingId })
-      if (!exists) return res.status(404).json({ message: 'Listing not found' })
+      if (!exists) return res.status(404).json({ message: 'Property not found' })
 
       await User.updateOne({ _id: req.accountUser._id }, { $addToSet: { favoriteListingIds: listingId } })
       const updated = await User.findById(req.accountUser._id)
@@ -458,7 +551,7 @@ async function start() {
     try {
       const listingId = String(req.params.listingId || '').trim()
       if (!listingId || !mongoose.isValidObjectId(listingId)) {
-        return res.status(400).json({ message: 'Valid listingId is required' })
+        return res.status(400).json({ message: 'Valid property id is required' })
       }
       await User.updateOne({ _id: req.accountUser._id }, { $pull: { favoriteListingIds: listingId } })
       const updated = await User.findById(req.accountUser._id)

@@ -1,6 +1,6 @@
 import type { Listing, ListingIntent } from '../data/listings'
 import { parseAgreement } from '../lib/listingFormat'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../features/auth/useAuth'
 import { ListingBuildingIllustration } from './ListingBuildingIllustration'
 
 type Props = {
@@ -11,6 +11,8 @@ type Props = {
   myListingIntent?: ListingIntent
   onEditMyListing?: (listing: Listing, intent: ListingIntent) => void
   onViewDetails?: (listing: Listing, intent: ListingIntent) => void
+  /** Opens detail with contact in view (e.g. scroll to Contact). Falls back to onViewDetails when omitted. */
+  onContactOwner?: (listing: Listing, intent: ListingIntent) => void
 }
 
 function CheckIcon() {
@@ -25,13 +27,28 @@ function CheckIcon() {
   )
 }
 
-export function PropertyCard({ listing, listingIntent, myListingIntent, onEditMyListing, onViewDetails }: Props) {
+export function PropertyCard({
+  listing,
+  listingIntent,
+  myListingIntent,
+  onEditMyListing,
+  onViewDetails,
+  onContactOwner,
+}: Props) {
   const { user, favoriteListingIds, toggleFavorite } = useAuth()
   const agreement = parseAgreement(listing.agreementLabel)
   const detailIntent: ListingIntent = listingIntent ?? listing.intent ?? 'buy'
 
   function openDetails() {
     onViewDetails?.(listing, detailIntent)
+  }
+
+  function openContact() {
+    if (onContactOwner) {
+      onContactOwner(listing, detailIntent)
+    } else {
+      openDetails()
+    }
   }
   const isFavorite = favoriteListingIds.includes(listing.id)
   const canFavorite = Boolean(user)
@@ -88,7 +105,7 @@ export function PropertyCard({ listing, listingIntent, myListingIntent, onEditMy
                     : 'border-border-subtle text-ink-muted hover:bg-surface-muted hover:text-brand-600'
                   : 'cursor-not-allowed border-border-subtle text-ink-muted opacity-50')
               }
-              aria-label={isFavorite ? 'Remove from favorites' : 'Save listing'}
+              aria-label={isFavorite ? 'Remove from favorites' : 'Save property'}
               aria-pressed={isFavorite}
             >
               <svg
@@ -181,13 +198,13 @@ export function PropertyCard({ listing, listingIntent, myListingIntent, onEditMy
                 : 'cursor-not-allowed bg-surface-muted text-ink-muted')
             }
           >
-            View details
+            View property
           </button>
           {isOwnerContext ? (
             onEditMyListing && myListingIntent ? (
               <div className="flex min-w-0 flex-1 flex-wrap gap-2 md:flex-none md:min-w-[280px]">
                 <span className="inline-flex min-h-[38px] min-w-0 flex-1 items-center justify-center rounded-md border border-border-subtle border-dashed bg-surface-muted px-3 py-2 text-sm font-semibold text-ink-muted">
-                  Your listing
+                  Your property
                 </span>
                 <button
                   type="button"
@@ -199,13 +216,20 @@ export function PropertyCard({ listing, listingIntent, myListingIntent, onEditMy
               </div>
             ) : (
               <span className="inline-flex flex-1 items-center justify-center rounded-md border border-border-subtle border-dashed bg-surface-muted px-3 py-2 text-sm font-semibold text-ink-muted md:flex-none">
-                Your listing
+                Your property
               </span>
             )
           ) : (
             <button
               type="button"
-              className="inline-flex flex-1 items-center justify-center rounded-md border border-border-subtle px-3 py-2 text-sm font-semibold text-ink-secondary hover:bg-surface-muted md:flex-none"
+              onClick={onViewDetails || onContactOwner ? openContact : undefined}
+              disabled={!onViewDetails && !onContactOwner}
+              className={
+                'inline-flex flex-1 items-center justify-center rounded-md border border-border-subtle px-3 py-2 text-sm font-semibold md:flex-none ' +
+                (onViewDetails || onContactOwner
+                  ? 'text-ink-secondary hover:bg-surface-muted'
+                  : 'cursor-not-allowed text-ink-muted opacity-60')
+              }
             >
               Contact owner
             </button>

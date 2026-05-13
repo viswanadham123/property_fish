@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { signUp } from '../api/authApi'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../features/auth/useAuth'
 import { AuthSplitLayout } from './AuthSplitLayout'
+import { PasswordField } from './PasswordField'
 
 type Props = {
   onGoToSignIn: () => void
@@ -10,7 +11,7 @@ type Props = {
 
 const BULLETS = [
   'Choose a strong password (at least 10 characters). It is hashed before it ever touches storage.',
-  'Listings you create are tied to your account so only you can edit them.',
+  'Properties you post are tied to your account so only you can edit them.',
   'We recommend a unique password for this site and signing out on shared computers.',
 ]
 
@@ -97,14 +98,12 @@ export function SignUpScreen({ onGoToSignIn, onAuthenticated }: Props) {
           </label>
           <label className="block text-sm font-medium text-ink-secondary">
             Password
-            <input
+            <PasswordField
               name="password"
-              type="password"
               required
               minLength={10}
               autoComplete="new-password"
               placeholder="At least 10 characters"
-              className="mt-1.5 w-full rounded-md border border-border-subtle bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-600 focus:ring-2 focus:ring-brand-600/25 focus:outline-none"
             />
           </label>
           <button
@@ -119,7 +118,7 @@ export function SignUpScreen({ onGoToSignIn, onAuthenticated }: Props) {
         <p className="mt-6 text-center text-sm text-ink-secondary">
           Already registered?{' '}
           <button type="button" onClick={onGoToSignIn} className="font-semibold text-brand-600 hover:underline">
-            Sign in instead
+            Sign in
           </button>
         </p>
       </div>

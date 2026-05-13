@@ -13,6 +13,8 @@ const userSchema = new mongoose.Schema(
       type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Listing' }],
       default: () => [],
     },
+    passwordResetToken: { type: String, default: null, sparse: true, index: true },
+    passwordResetExpires: { type: Date, default: null },
   },
   { timestamps: true },
 )

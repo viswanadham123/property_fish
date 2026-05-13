@@ -119,6 +119,36 @@ export async function signUp(payload: SignUpPayload): Promise<AuthResponse> {
   return { ...data, user: normalizePublicUser(data.user) }
 }
 
+export type ForgotPasswordResponse = {
+  message: string
+  /** Only in non-production API builds: full URL to open and set a new password. */
+  devResetUrl?: string
+}
+
+export async function requestPasswordReset(email: string): Promise<ForgotPasswordResponse> {
+  const response = await fetch(apiUrl('/api/auth/forgot-password'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+  if (!response.ok) {
+    throw new Error(await readError(response, 'Could not send reset request'))
+  }
+  return response.json()
+}
+
+export async function resetPassword(payload: { token: string; password: string }): Promise<{ message: string }> {
+  const response = await fetch(apiUrl('/api/auth/reset-password'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!response.ok) {
+    throw new Error(await readError(response, 'Could not reset password'))
+  }
+  return response.json()
+}
+
 export async function updateProfile(payload: UpdateProfilePayload): Promise<{ user: PublicUser }> {
   const response = await fetch(apiUrl('/api/me/profile'), {
     method: 'PATCH',

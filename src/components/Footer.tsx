@@ -1,8 +1,9 @@
 type Props = {
+  onBrowseListings?: () => void
   onPostPropertyClick?: () => void
 }
 
-export function Footer({ onPostPropertyClick }: Props) {
+export function Footer({ onBrowseListings, onPostPropertyClick }: Props) {
   return (
     <footer className="pf-footer-gradient mt-16 text-white/90">
       <div className="mx-auto w-full max-w-none px-4 py-14 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
@@ -10,19 +11,20 @@ export function Footer({ onPostPropertyClick }: Props) {
           <div className="space-y-4 rounded-lg bg-white/5 p-6 ring-1 ring-white/10 backdrop-blur-sm">
             <h2 className="text-xl font-bold text-white">Browse</h2>
             <p className="max-w-md text-sm leading-relaxed text-white/75">
-              Search and filter listings from the catalogue. Data is loaded from the server when you use the app.
+              Search and filter properties from the catalogue. Data is loaded from the server when you use the app.
             </p>
             <button
               type="button"
+              onClick={onBrowseListings}
               className="rounded-md bg-brand-600 px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-brand-700"
             >
-              Browse listings
+              Browse properties
             </button>
           </div>
 
           <div className="space-y-4 rounded-lg bg-white/5 p-6 ring-1 ring-white/10 backdrop-blur-sm">
             <h2 className="text-xl font-bold text-white">List your property</h2>
-            <p className="text-sm text-white/75">Post when you are signed in. You can edit or remove your own listings from your account.</p>
+            <p className="text-sm text-white/75">Post when you are signed in. You can edit or remove your own properties from your account.</p>
             <button
               type="button"
               onClick={onPostPropertyClick}

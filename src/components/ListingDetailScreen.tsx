@@ -8,13 +8,15 @@ import {
   propertyKindsLabel,
   tenantKindsLabel,
 } from '../lib/listingFormat'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../features/auth/useAuth'
 import { ListingBuildingIllustration } from './ListingBuildingIllustration'
 
 type Props = {
   listing: Listing
   intent: ListingIntent
   returnTo: 'listings' | 'profile'
+  /** When true (e.g. opened from "Contact owner"), scroll the Contact section into view after paint. */
+  focusContact?: boolean
   onBack: () => void
   onEditMyListing?: (listing: Listing, intent: ListingIntent) => void
 }
@@ -31,7 +33,14 @@ function CheckIcon() {
   )
 }
 
-export function ListingDetailScreen({ listing: initialListing, intent, returnTo, onBack, onEditMyListing }: Props) {
+export function ListingDetailScreen({
+  listing: initialListing,
+  intent,
+  returnTo,
+  focusContact,
+  onBack,
+  onEditMyListing,
+}: Props) {
   const { user, favoriteListingIds, toggleFavorite } = useAuth()
   const [listing, setListing] = useState(initialListing)
   const [detailError, setDetailError] = useState<string | null>(null)
@@ -43,10 +52,18 @@ export function ListingDetailScreen({ listing: initialListing, intent, returnTo,
       .then(setListing)
       .catch((e) => {
         if (e instanceof DOMException && e.name === 'AbortError') return
-        setDetailError(e instanceof Error ? e.message : 'Could not load latest listing')
+        setDetailError(e instanceof Error ? e.message : 'Could not load latest property details')
       })
     return () => ac.abort()
   }, [initialListing.id])
+
+  useEffect(() => {
+    if (!focusContact) return
+    const id = window.setTimeout(() => {
+      document.getElementById('property-contact')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 120)
+    return () => window.clearTimeout(id)
+  }, [focusContact, listing.id])
 
   const agreement = parseAgreement(listing.agreementLabel)
   const isFavorite = favoriteListingIds.includes(listing.id)
@@ -55,7 +72,7 @@ export function ListingDetailScreen({ listing: initialListing, intent, returnTo,
   const contactName = listing.contactName?.trim() ?? ''
   const contactPhone = listing.contactPhone?.trim() ?? ''
   const hasContact = Boolean(contactName || contactPhone)
-  const backLabel = returnTo === 'profile' ? 'Back to account' : 'Back to listings'
+  const backLabel = returnTo === 'profile' ? 'Back to account' : 'Back to properties'
 
   return (
     <div className="mx-auto w-full max-w-none px-4 py-6 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
@@ -95,7 +112,7 @@ export function ListingDetailScreen({ listing: initialListing, intent, returnTo,
                   : 'border-border-subtle text-ink-muted hover:bg-surface-muted hover:text-brand-600'
                 : 'cursor-not-allowed border-border-subtle text-ink-muted opacity-50')
             }
-            aria-label={isFavorite ? 'Remove from favorites' : 'Save listing'}
+            aria-label={isFavorite ? 'Remove from favorites' : 'Save property'}
             aria-pressed={isFavorite}
           >
             <svg
@@ -131,7 +148,7 @@ export function ListingDetailScreen({ listing: initialListing, intent, returnTo,
             <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <span className="text-3xl font-bold tracking-tight text-ink sm:text-4xl">{agreement.price}</span>
               {agreement.showAgreementLink ? (
-                <span className="text-sm font-semibold text-brand-600">Agreement value (see listing)</span>
+                <span className="text-sm font-semibold text-brand-600">Agreement value (see property)</span>
               ) : null}
             </p>
             <h1 className="text-xl font-bold leading-snug text-ink sm:text-2xl">{listing.title}</h1>
@@ -202,7 +219,7 @@ export function ListingDetailScreen({ listing: initialListing, intent, returnTo,
             <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-ink-secondary">{listing.description}</p>
           </section>
 
-          <section className="rounded-lg border border-border-subtle bg-surface-muted/60 p-5 sm:p-6">
+          <section id="property-contact" className="rounded-lg border border-border-subtle bg-surface-muted/60 p-5 sm:p-6">
             <h2 className="text-sm font-bold uppercase tracking-wide text-ink-muted">Contact</h2>
             <div className="mt-3 space-y-4">
               {hasContact ? (
@@ -228,25 +245,25 @@ export function ListingDetailScreen({ listing: initialListing, intent, returnTo,
                   ) : null}
                 </dl>
               ) : (
-                <p className="text-sm text-ink-secondary">No contact name or phone was provided for this listing.</p>
+                <p className="text-sm text-ink-secondary">No contact name or phone was provided for this property.</p>
               )}
 
               {isOwnListing ? (
                 <div className="flex flex-wrap items-center gap-3 border-t border-border-subtle pt-4">
-                  <p className="text-sm text-ink-secondary">This is your listing.</p>
+                  <p className="text-sm text-ink-secondary">This is your property.</p>
                   {onEditMyListing ? (
                     <button
                       type="button"
                       onClick={() => onEditMyListing(listing, intent)}
                       className="rounded-md border border-brand-600 bg-surface px-4 py-2 text-sm font-semibold text-brand-700 hover:bg-brand-50"
                     >
-                      Edit listing
+                      Edit property
                     </button>
                   ) : null}
                 </div>
               ) : hasContact ? (
                 <p className="text-xs text-ink-muted">
-                  Please mention you found this listing on Property Fish when you call or message.
+                  Please mention you found this property on Property Fish when you call or message.
                 </p>
               ) : null}
             </div>

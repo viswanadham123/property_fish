@@ -8,15 +8,15 @@ export type ListingCatalogue = Record<ListingIntent, Listing[]>
 
 export async function fetchListingCatalogue(signal?: AbortSignal): Promise<ListingCatalogue> {
   const response = await fetch(apiUrl('/api/listings'), { signal })
-  if (!response.ok) throw new Error(`Failed to fetch listings: ${response.status}`)
+  if (!response.ok) throw new Error(`Failed to fetch properties: ${response.status}`)
   return response.json()
 }
 
 /** Full listing row from the server (includes contact when stored). */
 export async function fetchListingById(listingId: string, signal?: AbortSignal): Promise<Listing> {
   const response = await fetch(apiUrl(`/api/listings/${encodeURIComponent(listingId)}`), { signal })
-  if (response.status === 404) throw new Error('Listing not found')
-  if (!response.ok) throw new Error(`Failed to load listing: ${response.status}`)
+  if (response.status === 404) throw new Error('Property not found')
+  if (!response.ok) throw new Error(`Failed to load property: ${response.status}`)
   return response.json() as Promise<Listing>
 }
 
@@ -27,8 +27,8 @@ export async function fetchMyListingCatalogue(signal?: AbortSignal): Promise<Lis
     signal,
   })
   if (!response.ok) {
-    const data = await response.json().catch(() => ({ message: 'Failed to load your listings' }))
-    throw new Error(data.message || `Failed to load your listings: ${response.status}`)
+    const data = await response.json().catch(() => ({ message: 'Failed to load your properties' }))
+    throw new Error(data.message || `Failed to load your properties: ${response.status}`)
   }
   return response.json()
 }
@@ -43,8 +43,8 @@ export async function createListing(intent: ListingIntent, payload: Partial<List
     body: JSON.stringify({ intent, ...payload }),
   })
   if (!response.ok) {
-    const data = await response.json().catch(() => ({ message: 'Failed to create listing' }))
-    throw new Error(data.message || 'Failed to create listing')
+    const data = await response.json().catch(() => ({ message: 'Failed to create property' }))
+    throw new Error(data.message || 'Failed to create property')
   }
   return response.json()
 }
@@ -56,8 +56,8 @@ export async function updateMyListing(listingId: string, payload: Partial<Listin
     body: JSON.stringify(payload),
   })
   if (!response.ok) {
-    const data = await response.json().catch(() => ({ message: 'Failed to update listing' }))
-    throw new Error(data.message || 'Failed to update listing')
+    const data = await response.json().catch(() => ({ message: 'Failed to update property' }))
+    throw new Error(data.message || 'Failed to update property')
   }
   return response.json() as Promise<Listing>
 }

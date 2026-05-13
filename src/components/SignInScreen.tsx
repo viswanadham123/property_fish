@@ -1,20 +1,23 @@
 import { useState } from 'react'
 import { signIn } from '../api/authApi'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../features/auth/useAuth'
 import { AuthSplitLayout } from './AuthSplitLayout'
+import { PasswordField } from './PasswordField'
 
 type Props = {
   onGoToSignUp: () => void
+  onForgotPassword?: () => void
   onAuthenticated?: () => void
 }
 
 const BULLETS = [
-  'Passwords are stored using a strong one-way hash — we never keep your password in plain text.',
-  'Use a unique password and keep your session private, especially on shared devices.',
-  'Sign out when you are finished if others may use the same browser.',
+  'Browse buy and rent properties with filters for BHK, locality, furnishing, and more.',
+  'Save favorites to your account and pick up your shortlist on any device.',
+  'Post or edit your own properties and manage enquiries from one place.',
+  'Passwords are hashed securely; use HTTPS in production and sign out on shared computers.',
 ]
 
-export function SignInScreen({ onGoToSignUp, onAuthenticated }: Props) {
+export function SignInScreen({ onGoToSignUp, onForgotPassword, onAuthenticated }: Props) {
   const { login } = useAuth()
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -23,8 +26,8 @@ export function SignInScreen({ onGoToSignUp, onAuthenticated }: Props) {
   return (
     <AuthSplitLayout
       asideEyebrow="Welcome back"
-      asideTitle="Sign in to unlock your Property Fish workspace"
-      asideDescription="Sign in with the email you registered. Your password is sent only over HTTPS in production."
+      asideTitle="Sign in to explore and manage properties"
+      asideDescription="Use the email you registered with Property Fish. After you sign in you can search the catalogue, save favorites, and post or update your properties."
       bullets={BULLETS}
     >
       <div className="rounded-xl border border-border-subtle bg-surface p-6 shadow-[0_8px_30px_rgba(45,45,45,0.08)] sm:p-8">
@@ -75,15 +78,24 @@ export function SignInScreen({ onGoToSignUp, onAuthenticated }: Props) {
           </label>
           <label className="block text-sm font-medium text-ink-secondary">
             Password
-            <input
+            <PasswordField
               name="password"
-              type="password"
               required
               autoComplete="current-password"
               placeholder="••••••••"
-              className="mt-1.5 w-full rounded-md border border-border-subtle bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-600 focus:ring-2 focus:ring-brand-600/25 focus:outline-none"
             />
           </label>
+          {onForgotPassword ? (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={onForgotPassword}
+                className="text-sm font-semibold text-brand-600 hover:underline"
+              >
+                Forgot password?
+              </button>
+            </div>
+          ) : null}
           <button
             type="submit"
             disabled={loading}

@@ -42,6 +42,8 @@ type Props = {
   edit?: EditContext
   onCancelEdit?: () => void
   onEditSaved?: () => void | Promise<void>
+  /** Create flow only: pre-select Sell vs Rent in the form */
+  initialIntent?: ListingIntent
 }
 
 const PROPERTY_TYPES = [
@@ -69,19 +71,20 @@ export function PostPropertyScreen({
   edit,
   onCancelEdit,
   onEditSaved,
+  initialIntent = 'buy',
 }: Props) {
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const formKey = edit ? `edit-${edit.listing.id}` : 'create'
+  const formKey = edit ? `edit-${edit.listing.id}` : `create-${initialIntent}`
 
   const defaults = useMemo(() => {
     if (!edit) {
       return {
         title: '',
         propertyType: 'Apartment',
-        intentIsRent: false,
+        intentIsRent: initialIntent === 'rent',
         bhk: '2 BHK',
         city: '',
         locality: '',
@@ -112,18 +115,18 @@ export function PostPropertyScreen({
       tenants: (edit.listing.tenants?.length ? edit.listing.tenants : ['family']) as TenantKind[],
       propertyKinds: (edit.listing.propertyKinds?.length ? edit.listing.propertyKinds : ['apartment']) as PropertyKind[],
     }
-  }, [edit])
+  }, [edit, initialIntent])
 
   useEffect(() => {
     setSubmitted(false)
     setError(null)
   }, [formKey])
 
-  const heading = edit ? 'Edit your listing' : 'Post Your Property'
+  const heading = edit ? 'Edit your property' : 'Post Your Property'
   const subheading = edit
     ? 'Update the details below and save. Changes apply immediately.'
     : 'Fill details once. Our team can help you verify and publish quickly.'
-  const successTitle = edit ? 'Listing updated' : 'Property submitted successfully'
+  const successTitle = edit ? 'Property updated' : 'Property submitted successfully'
   const successBody = edit
     ? 'Your changes have been saved.'
     : 'Thanks! A relationship manager will contact you shortly for verification.'
@@ -142,7 +145,7 @@ export function PostPropertyScreen({
       <div className="mb-5 flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">
-            {edit ? 'Edit listing' : 'Free Listing'}
+            {edit ? 'Edit property' : 'Free property post'}
           </p>
           <h1 className="text-2xl font-bold text-ink sm:text-3xl">{heading}</h1>
           <p className="mt-1 text-sm text-ink-secondary">{subheading}</p>
@@ -152,7 +155,7 @@ export function PostPropertyScreen({
           onClick={handleBack}
           className="rounded-md border border-border-subtle bg-surface px-4 py-2 text-sm font-semibold text-ink-secondary hover:bg-surface-muted"
         >
-          {edit ? 'Back' : 'Back to listings'}
+          {edit ? 'Back' : 'Back to properties'}
         </button>
       </div>
 
@@ -166,7 +169,7 @@ export function PostPropertyScreen({
               onClick={() => void onEditSaved?.()}
               className="mt-4 rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
             >
-              Back to my listings
+              Back to my properties
             </button>
           ) : null}
         </div>
@@ -199,7 +202,7 @@ export function PostPropertyScreen({
             const propertyKinds = parsePropertyKinds(form)
 
             if (tenants.length === 0) {
-              setError('Choose at least one preferred tenant type (same options as listing filters).')
+              setError('Choose at least one preferred tenant type (same options as property search filters).')
               return
             }
             if (propertyKinds.length === 0) {
@@ -303,7 +306,7 @@ export function PostPropertyScreen({
             </label>
             <label className="text-sm font-medium text-ink-secondary">
               <span>BHK</span>
-              <span className="mt-0.5 block text-xs font-normal text-ink-muted">Matches “BHK Type” in listing filters</span>
+              <span className="mt-0.5 block text-xs font-normal text-ink-muted">Matches “BHK Type” in property search filters</span>
               <select
                 name="bhk"
                 defaultValue={defaults.bhk}
@@ -373,9 +376,9 @@ export function PostPropertyScreen({
         </section>
 
         <section>
-          <h2 className="mb-1 text-sm font-bold uppercase tracking-wide text-ink-muted">How buyers filter your listing</h2>
+          <h2 className="mb-1 text-sm font-bold uppercase tracking-wide text-ink-muted">How buyers filter your property</h2>
           <p className="mb-4 text-xs text-ink-secondary">
-            These line up with the sidebar filters on the main listings page (furnishing, tenants, and property kind).
+            These line up with the sidebar filters on the main search page (furnishing, tenants, and property kind).
           </p>
 
           <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-muted">Furnishing</h3>

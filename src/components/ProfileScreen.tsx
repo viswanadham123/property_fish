@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
 import { updateProfile, type PublicUser } from '../api/authApi'
 import { fetchFavoriteListings } from '../api/favoritesApi'
 import { fetchMyListingCatalogue } from '../api/listingsApi'
 import type { Listing, ListingIntent } from '../data/listings'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../features/auth/useAuth'
 import { PropertyCard } from './PropertyCard'
 
 const inputClass =
   'mt-1 w-full rounded-md border border-border-subtle px-3 py-2.5 text-sm text-ink focus:border-brand-600 focus:ring-2 focus:ring-brand-600/25 focus:outline-none'
 
-type Tab = 'profile' | 'favorites' | 'my-listings'
+export type ProfileScreenTab = 'profile' | 'favorites' | 'my-listings'
+type Tab = ProfileScreenTab
 
 type Props = {
   user: PublicUser
@@ -17,13 +18,27 @@ type Props = {
   onEditMyListing?: (listing: Listing, intent: ListingIntent) => void
   /** Open full listing detail (favorites + my listings). */
   onViewListing?: (listing: Listing, intent: ListingIntent) => void
+  /** Same as opening detail, but scrolls to the Contact block (used by "Contact owner" on cards). */
+  onContactListing?: (listing: Listing, intent: ListingIntent) => void
   /** Increment from parent after saving an edit so "My listings" refetches. */
   myListingsVersion?: number
+  /** From header nav: which tab to show (token bumps on each request so repeats work). */
+  profileNavTab?: ProfileScreenTab | null
+  profileNavToken?: number
 }
 
 type ProfileDraft = Pick<PublicUser, 'fullName' | 'phone' | 'location' | 'profession'>
 
-export function ProfileScreen({ user, onBack, onEditMyListing, onViewListing, myListingsVersion = 0 }: Props) {
+export function ProfileScreen({
+  user,
+  onBack,
+  onEditMyListing,
+  onViewListing,
+  onContactListing,
+  myListingsVersion = 0,
+  profileNavTab,
+  profileNavToken = 0,
+}: Props) {
   const { favoriteListingIds, refreshUser } = useAuth()
   const [tab, setTab] = useState<Tab>('profile')
   const [editing, setEditing] = useState(false)
@@ -35,6 +50,11 @@ export function ProfileScreen({ user, onBack, onEditMyListing, onViewListing, my
   }))
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileError, setProfileError] = useState<string | null>(null)
+
+  useLayoutEffect(() => {
+    if (!profileNavTab || profileNavToken <= 0) return
+    setTab(profileNavTab)
+  }, [profileNavTab, profileNavToken])
 
   useEffect(() => {
     if (!editing) {
@@ -77,7 +97,7 @@ export function ProfileScreen({ user, onBack, onEditMyListing, onViewListing, my
       setMyBuy(cat.buy)
       setMyRent(cat.rent)
     } catch (e) {
-      setMyError(e instanceof Error ? e.message : 'Failed to load your listings')
+      setMyError(e instanceof Error ? e.message : 'Failed to load your properties')
     } finally {
       setMyLoading(false)
     }
@@ -105,7 +125,7 @@ export function ProfileScreen({ user, onBack, onEditMyListing, onViewListing, my
           onClick={onBack}
           className="rounded-md border border-border-subtle bg-surface px-4 py-2 text-sm font-semibold text-ink-secondary hover:bg-surface-muted"
         >
-          Back to listings
+          Back to properties
         </button>
       </div>
 
@@ -145,7 +165,7 @@ export function ProfileScreen({ user, onBack, onEditMyListing, onViewListing, my
                 : 'border-transparent text-ink-secondary hover:text-ink')
             }
           >
-            My listings
+            My properties
           </button>
         </nav>
       </div>
@@ -304,7 +324,7 @@ export function ProfileScreen({ user, onBack, onEditMyListing, onViewListing, my
             <p className="text-sm text-ink-secondary">Loading favorites…</p>
           ) : favorites.length === 0 ? (
             <p className="rounded-lg border border-border-subtle bg-surface px-4 py-8 text-center text-sm text-ink-secondary">
-              No saved listings yet. Use the heart on a property card to add favorites.
+              No saved properties yet. Use the heart on a property card to add favorites.
             </p>
           ) : (
             <div className="flex flex-col gap-6">
@@ -314,6 +334,7 @@ export function ProfileScreen({ user, onBack, onEditMyListing, onViewListing, my
                   listing={listing}
                   listingIntent={listing.intent ?? 'buy'}
                   onViewDetails={onViewListing}
+                  onContactOwner={onContactListing}
                 />
               ))}
             </div>
@@ -326,11 +347,11 @@ export function ProfileScreen({ user, onBack, onEditMyListing, onViewListing, my
             </button>
           </div>
         ) : myLoading ? (
-          <p className="text-sm text-ink-secondary">Loading your listings…</p>
+          <p className="text-sm text-ink-secondary">Loading your properties…</p>
         ) : myTotal === 0 ? (
           <p className="rounded-lg border border-border-subtle bg-surface px-4 py-8 text-center text-sm text-ink-secondary">
-            You have not posted any properties yet while signed in. Use <strong>Post Property</strong> from the header — your
-            posts will show here.
+            You have not posted any properties yet while signed in. Use <strong>Post Property</strong> from the header —
+            your posts will show here.
           </p>
         ) : (
           <div className="flex flex-col gap-8">
@@ -345,6 +366,7 @@ export function ProfileScreen({ user, onBack, onEditMyListing, onViewListing, my
                       listingIntent="buy"
                       myListingIntent="buy"
                       onViewDetails={onViewListing}
+                      onContactOwner={onContactListing}
                       onEditMyListing={onEditMyListing}
                     />
                   ))}
@@ -362,6 +384,7 @@ export function ProfileScreen({ user, onBack, onEditMyListing, onViewListing, my
                       listingIntent="rent"
                       myListingIntent="rent"
                       onViewDetails={onViewListing}
+                      onContactOwner={onContactListing}
                       onEditMyListing={onEditMyListing}
                     />
                   ))}
