@@ -1,5 +1,5 @@
 {
-  "name": "biginfra",
+  "name": "best-infra",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -27,6 +27,8 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.5.1",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.6.2",
     "react": "^19.2.6",

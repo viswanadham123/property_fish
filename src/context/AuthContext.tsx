@@ -55,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(storedToken)
       setUser(data.user)
       setFavoriteListingIds(data.favoriteListingIds ?? [])
+      saveStoredSession(storedToken, data.user)
     } catch {
       clearStoredSession()
       setUser(null)

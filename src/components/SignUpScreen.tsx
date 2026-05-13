@@ -1,24 +1,35 @@
 import { useState } from 'react'
 import { signUp } from '../api/authApi'
 import { useAuth } from '../context/AuthContext'
+import { AuthSplitLayout } from './AuthSplitLayout'
 
 type Props = {
-  onBackToListings: () => void
   onGoToSignIn: () => void
   onAuthenticated?: () => void
 }
 
-export function SignUpScreen({ onBackToListings, onGoToSignIn, onAuthenticated }: Props) {
+const BULLETS = [
+  'Choose a strong password (at least 10 characters). It is hashed before it ever touches storage.',
+  'Listings you create are tied to your account so only you can edit them.',
+  'We recommend a unique password for this site and signing out on shared computers.',
+]
+
+export function SignUpScreen({ onGoToSignIn, onAuthenticated }: Props) {
   const { login } = useAuth()
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   return (
-    <div className="mx-auto max-w-md px-4 py-8 sm:px-6">
-      <div className="rounded-lg border border-border-subtle bg-surface p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-ink">Create Account</h1>
-        <p className="mt-1 text-sm text-ink-secondary">Sign up to post property, track leads, and manage listings.</p>
+    <AuthSplitLayout
+      asideEyebrow="Join Property Fish"
+      asideTitle="List and discover homes across top cities"
+      asideDescription="Create an account to post properties. Passwords must be at least 10 characters and are stored securely on the server."
+      bullets={BULLETS}
+    >
+      <div className="rounded-xl border border-border-subtle bg-surface p-6 shadow-[0_8px_30px_rgba(45,45,45,0.08)] sm:p-8">
+        <h1 className="text-2xl font-bold text-ink">Create account</h1>
+        <p className="mt-1 text-sm text-ink-secondary">Fill in your details to register — then you can post right away.</p>
 
         {submitted ? (
           <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">
@@ -29,7 +40,7 @@ export function SignUpScreen({ onBackToListings, onGoToSignIn, onAuthenticated }
         {error ? <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{error}</p> : null}
 
         <form
-          className="mt-5 space-y-4"
+          className="mt-6 space-y-4"
           onSubmit={async (e) => {
             e.preventDefault()
             const form = new FormData(e.currentTarget)
@@ -54,12 +65,13 @@ export function SignUpScreen({ onBackToListings, onGoToSignIn, onAuthenticated }
           }}
         >
           <label className="block text-sm font-medium text-ink-secondary">
-            Full Name
+            Full name
             <input
               name="fullName"
               required
+              autoComplete="name"
               placeholder="Your name"
-              className="mt-1 w-full rounded-md border border-border-subtle px-3 py-2.5 text-sm focus:border-brand-600 focus:ring-2 focus:ring-brand-600/25 focus:outline-none"
+              className="mt-1.5 w-full rounded-md border border-border-subtle bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-600 focus:ring-2 focus:ring-brand-600/25 focus:outline-none"
             />
           </label>
           <label className="block text-sm font-medium text-ink-secondary">
@@ -68,17 +80,19 @@ export function SignUpScreen({ onBackToListings, onGoToSignIn, onAuthenticated }
               name="email"
               type="email"
               required
+              autoComplete="email"
               placeholder="you@example.com"
-              className="mt-1 w-full rounded-md border border-border-subtle px-3 py-2.5 text-sm focus:border-brand-600 focus:ring-2 focus:ring-brand-600/25 focus:outline-none"
+              className="mt-1.5 w-full rounded-md border border-border-subtle bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-600 focus:ring-2 focus:ring-brand-600/25 focus:outline-none"
             />
           </label>
           <label className="block text-sm font-medium text-ink-secondary">
-            Mobile Number
+            Mobile number
             <input
               name="phone"
               required
+              autoComplete="tel"
               placeholder="+91 9XXXXXXXXX"
-              className="mt-1 w-full rounded-md border border-border-subtle px-3 py-2.5 text-sm focus:border-brand-600 focus:ring-2 focus:ring-brand-600/25 focus:outline-none"
+              className="mt-1.5 w-full rounded-md border border-border-subtle bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-600 focus:ring-2 focus:ring-brand-600/25 focus:outline-none"
             />
           </label>
           <label className="block text-sm font-medium text-ink-secondary">
@@ -87,28 +101,28 @@ export function SignUpScreen({ onBackToListings, onGoToSignIn, onAuthenticated }
               name="password"
               type="password"
               required
-              placeholder="Create password"
-              className="mt-1 w-full rounded-md border border-border-subtle px-3 py-2.5 text-sm focus:border-brand-600 focus:ring-2 focus:ring-brand-600/25 focus:outline-none"
+              minLength={10}
+              autoComplete="new-password"
+              placeholder="At least 10 characters"
+              className="mt-1.5 w-full rounded-md border border-border-subtle bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-600 focus:ring-2 focus:ring-brand-600/25 focus:outline-none"
             />
           </label>
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-md bg-brand-600 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-70"
+            className="w-full rounded-md bg-brand-600 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {loading ? 'Creating account...' : 'Sign Up'}
+            {loading ? 'Creating account…' : 'Create account'}
           </button>
         </form>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm">
+        <p className="mt-6 text-center text-sm text-ink-secondary">
+          Already registered?{' '}
           <button type="button" onClick={onGoToSignIn} className="font-semibold text-brand-600 hover:underline">
-            Already have an account? Sign in
+            Sign in instead
           </button>
-          <button type="button" onClick={onBackToListings} className="text-ink-secondary hover:text-ink">
-            Back to listings
-          </button>
-        </div>
+        </p>
       </div>
-    </div>
+    </AuthSplitLayout>
   )
 }

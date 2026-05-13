@@ -8,6 +8,16 @@ export type PublicUser = {
   fullName: string
   email: string
   phone: string
+  /** City or area where the user is based. */
+  location: string
+  profession: string
+}
+
+export type UpdateProfilePayload = {
+  fullName?: string
+  phone?: string
+  location?: string
+  profession?: string
 }
 
 type SignInPayload = {
@@ -26,6 +36,15 @@ export type AuthResponse = {
   token: string
   user: PublicUser
   favoriteListingIds?: string[]
+}
+
+function normalizePublicUser(user: PublicUser): PublicUser {
+  return {
+    ...user,
+    phone: user.phone ?? '',
+    location: user.location ?? '',
+    profession: user.profession ?? '',
+  }
 }
 
 async function readError(response: Response, fallback: string) {
@@ -65,7 +84,7 @@ export async function fetchMe(signal?: AbortSignal): Promise<{ user: PublicUser;
 
   const data = await response.json()
   return {
-    user: data.user,
+    user: normalizePublicUser(data.user),
     favoriteListingIds: data.favoriteListingIds ?? [],
   }
 }
@@ -81,7 +100,8 @@ export async function signIn(payload: SignInPayload): Promise<AuthResponse> {
     throw new Error(await readError(response, 'Sign in failed'))
   }
 
-  return response.json()
+  const data: AuthResponse = await response.json()
+  return { ...data, user: normalizePublicUser(data.user) }
 }
 
 export async function signUp(payload: SignUpPayload): Promise<AuthResponse> {
@@ -95,5 +115,21 @@ export async function signUp(payload: SignUpPayload): Promise<AuthResponse> {
     throw new Error(await readError(response, 'Sign up failed'))
   }
 
-  return response.json()
+  const data: AuthResponse = await response.json()
+  return { ...data, user: normalizePublicUser(data.user) }
+}
+
+export async function updateProfile(payload: UpdateProfilePayload): Promise<{ user: PublicUser }> {
+  const response = await fetch(apiUrl('/api/me/profile'), {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    throw new Error(await readError(response, 'Could not save profile'))
+  }
+
+  const data = await response.json()
+  return { user: normalizePublicUser(data.user) }
 }

@@ -1,21 +1,51 @@
 import { useCallback, useEffect, useState } from 'react'
+import { updateProfile, type PublicUser } from '../api/authApi'
 import { fetchFavoriteListings } from '../api/favoritesApi'
 import { fetchMyListingCatalogue } from '../api/listingsApi'
-import type { PublicUser } from '../api/authApi'
-import type { Listing } from '../data/listings'
+import type { Listing, ListingIntent } from '../data/listings'
 import { useAuth } from '../context/AuthContext'
 import { PropertyCard } from './PropertyCard'
+
+const inputClass =
+  'mt-1 w-full rounded-md border border-border-subtle px-3 py-2.5 text-sm text-ink focus:border-brand-600 focus:ring-2 focus:ring-brand-600/25 focus:outline-none'
 
 type Tab = 'profile' | 'favorites' | 'my-listings'
 
 type Props = {
   user: PublicUser
   onBack: () => void
+  onEditMyListing?: (listing: Listing, intent: ListingIntent) => void
+  /** Open full listing detail (favorites + my listings). */
+  onViewListing?: (listing: Listing, intent: ListingIntent) => void
+  /** Increment from parent after saving an edit so "My listings" refetches. */
+  myListingsVersion?: number
 }
 
-export function ProfileScreen({ user, onBack }: Props) {
-  const { favoriteListingIds } = useAuth()
+type ProfileDraft = Pick<PublicUser, 'fullName' | 'phone' | 'location' | 'profession'>
+
+export function ProfileScreen({ user, onBack, onEditMyListing, onViewListing, myListingsVersion = 0 }: Props) {
+  const { favoriteListingIds, refreshUser } = useAuth()
   const [tab, setTab] = useState<Tab>('profile')
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState<ProfileDraft>(() => ({
+    fullName: user.fullName,
+    phone: user.phone,
+    location: user.location ?? '',
+    profession: user.profession ?? '',
+  }))
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileError, setProfileError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!editing) {
+      setDraft({
+        fullName: user.fullName,
+        phone: user.phone,
+        location: user.location ?? '',
+        profession: user.profession ?? '',
+      })
+    }
+  }, [user, editing])
 
   const [favorites, setFavorites] = useState<Listing[]>([])
   const [favLoading, setFavLoading] = useState(false)
@@ -59,12 +89,12 @@ export function ProfileScreen({ user, onBack }: Props) {
 
   useEffect(() => {
     if (tab === 'my-listings') void loadMyListings()
-  }, [tab, loadMyListings])
+  }, [tab, loadMyListings, myListingsVersion])
 
   const myTotal = myBuy.length + myRent.length
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-none px-4 py-6 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-ink sm:text-3xl">My account</h1>
@@ -123,20 +153,144 @@ export function ProfileScreen({ user, onBack }: Props) {
       <div className="mt-6">
         {tab === 'profile' ? (
           <div className="rounded-lg border border-border-subtle bg-surface p-6 shadow-sm">
-            <dl className="grid gap-4 sm:grid-cols-2">
+            <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
               <div>
-                <dt className="text-xs font-bold uppercase tracking-wide text-ink-muted">Full name</dt>
-                <dd className="mt-1 text-sm font-semibold text-ink">{user.fullName}</dd>
+                <h2 className="text-lg font-bold text-ink">Your details</h2>
+                <p className="mt-0.5 text-sm text-ink-secondary">Update how you appear and your contact preferences.</p>
               </div>
-              <div>
-                <dt className="text-xs font-bold uppercase tracking-wide text-ink-muted">Email</dt>
-                <dd className="mt-1 text-sm font-semibold text-ink">{user.email}</dd>
+              {editing ? (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={profileSaving}
+                    onClick={() => {
+                      setProfileError(null)
+                      setEditing(false)
+                    }}
+                    className="rounded-md border border-border-subtle bg-surface px-4 py-2 text-sm font-semibold text-ink-secondary hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={profileSaving}
+                    onClick={async () => {
+                      setProfileSaving(true)
+                      setProfileError(null)
+                      try {
+                        await updateProfile({
+                          fullName: draft.fullName.trim(),
+                          phone: draft.phone.trim(),
+                          location: draft.location.trim(),
+                          profession: draft.profession.trim(),
+                        })
+                        await refreshUser()
+                        setEditing(false)
+                      } catch (e) {
+                        setProfileError(e instanceof Error ? e.message : 'Save failed')
+                      } finally {
+                        setProfileSaving(false)
+                      }
+                    }}
+                    className="rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {profileSaving ? 'Saving…' : 'Save changes'}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfileError(null)
+                    setDraft({
+                      fullName: user.fullName,
+                      phone: user.phone,
+                      location: user.location ?? '',
+                      profession: user.profession ?? '',
+                    })
+                    setEditing(true)
+                  }}
+                  className="rounded-md border border-border-subtle bg-surface px-4 py-2 text-sm font-semibold text-ink hover:bg-surface-muted"
+                >
+                  Edit profile
+                </button>
+              )}
+            </div>
+
+            {profileError ? (
+              <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{profileError}</p>
+            ) : null}
+
+            {editing ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm font-medium text-ink-secondary sm:col-span-2">
+                  Full name
+                  <input
+                    value={draft.fullName}
+                    onChange={(e) => setDraft((d) => ({ ...d, fullName: e.target.value }))}
+                    className={inputClass}
+                    autoComplete="name"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-ink-secondary sm:col-span-2">
+                  Email
+                  <input value={user.email} readOnly className={inputClass + ' bg-surface-muted text-ink-secondary'} />
+                  <span className="mt-1 block text-xs text-ink-muted">Email cannot be changed here.</span>
+                </label>
+                <label className="block text-sm font-medium text-ink-secondary">
+                  Phone
+                  <input
+                    value={draft.phone}
+                    onChange={(e) => setDraft((d) => ({ ...d, phone: e.target.value }))}
+                    className={inputClass}
+                    autoComplete="tel"
+                    placeholder="Optional"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-ink-secondary">
+                  Location
+                  <input
+                    value={draft.location}
+                    onChange={(e) => setDraft((d) => ({ ...d, location: e.target.value }))}
+                    className={inputClass}
+                    autoComplete="address-level2"
+                    placeholder="City or area"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-ink-secondary sm:col-span-2">
+                  Profession
+                  <input
+                    value={draft.profession}
+                    onChange={(e) => setDraft((d) => ({ ...d, profession: e.target.value }))}
+                    className={inputClass}
+                    placeholder="e.g. Civil engineer, Agent, Home buyer"
+                  />
+                </label>
               </div>
-              <div className="sm:col-span-2">
-                <dt className="text-xs font-bold uppercase tracking-wide text-ink-muted">Phone</dt>
-                <dd className="mt-1 text-sm font-semibold text-ink">{user.phone || '—'}</dd>
-              </div>
-            </dl>
+            ) : (
+              <dl className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <dt className="text-xs font-bold uppercase tracking-wide text-ink-muted">Full name</dt>
+                  <dd className="mt-1 text-sm font-semibold text-ink">{user.fullName}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-bold uppercase tracking-wide text-ink-muted">Email</dt>
+                  <dd className="mt-1 text-sm font-semibold text-ink">{user.email}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-bold uppercase tracking-wide text-ink-muted">Phone</dt>
+                  <dd className="mt-1 text-sm font-semibold text-ink">{user.phone || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-bold uppercase tracking-wide text-ink-muted">Location</dt>
+                  <dd className="mt-1 text-sm font-semibold text-ink">{user.location || '—'}</dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-xs font-bold uppercase tracking-wide text-ink-muted">Profession</dt>
+                  <dd className="mt-1 text-sm font-semibold text-ink">{user.profession || '—'}</dd>
+                </div>
+              </dl>
+            )}
           </div>
         ) : tab === 'favorites' ? (
           favError ? (
@@ -155,7 +309,12 @@ export function ProfileScreen({ user, onBack }: Props) {
           ) : (
             <div className="flex flex-col gap-6">
               {favorites.map((listing) => (
-                <PropertyCard key={listing.id} listing={listing} />
+                <PropertyCard
+                  key={listing.id}
+                  listing={listing}
+                  listingIntent={listing.intent ?? 'buy'}
+                  onViewDetails={onViewListing}
+                />
               ))}
             </div>
           )
@@ -180,7 +339,14 @@ export function ProfileScreen({ user, onBack }: Props) {
                 <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-ink-muted">For sale</h2>
                 <div className="flex flex-col gap-6">
                   {myBuy.map((listing) => (
-                    <PropertyCard key={listing.id} listing={listing} />
+                    <PropertyCard
+                      key={listing.id}
+                      listing={listing}
+                      listingIntent="buy"
+                      myListingIntent="buy"
+                      onViewDetails={onViewListing}
+                      onEditMyListing={onEditMyListing}
+                    />
                   ))}
                 </div>
               </section>
@@ -190,7 +356,14 @@ export function ProfileScreen({ user, onBack }: Props) {
                 <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-ink-muted">For rent</h2>
                 <div className="flex flex-col gap-6">
                   {myRent.map((listing) => (
-                    <PropertyCard key={listing.id} listing={listing} />
+                    <PropertyCard
+                      key={listing.id}
+                      listing={listing}
+                      listingIntent="rent"
+                      myListingIntent="rent"
+                      onViewDetails={onViewListing}
+                      onEditMyListing={onEditMyListing}
+                    />
                   ))}
                 </div>
               </section>

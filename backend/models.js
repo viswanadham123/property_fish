@@ -5,6 +5,9 @@ const userSchema = new mongoose.Schema(
     fullName: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     phone: { type: String, default: '' },
+    /** User's city / area (not listing location). */
+    location: { type: String, default: '' },
+    profession: { type: String, default: '' },
     passwordHash: { type: String, required: true },
     favoriteListingIds: {
       type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Listing' }],
@@ -18,9 +21,9 @@ const listingSchema = new mongoose.Schema(
   {
     postedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
     intent: { type: String, enum: ['buy', 'rent'], required: true, index: true },
-    /** Shown internally / moderation only — omit from public API responses */
-    contactName: { type: String, default: '' },
-    contactPhone: { type: String, default: '' },
+  /** Shown internally / moderation only — included for owner on GET /api/me/listings for editing */
+  contactName: { type: String, default: '' },
+  contactPhone: { type: String, default: '' },
     title: { type: String, required: true },
     agreementLabel: { type: String, default: '' },
     agreementAmountINR: { type: Number, default: 0 },
@@ -48,9 +51,12 @@ export const User = mongoose.models.User || mongoose.model('User', userSchema)
 export const Listing = mongoose.models.Listing || mongoose.model('Listing', listingSchema)
 
 export function serializeListing(doc) {
-  const o = doc.toObject?.() ?? doc
+  const o = doc?.toObject?.({ depopulate: true }) ?? doc
+  const contactName = o.contactName != null ? String(o.contactName).trim().slice(0, 120) : ''
+  const contactPhone = o.contactPhone != null ? String(o.contactPhone).trim().slice(0, 40) : ''
   return {
     id: String(o._id),
+    postedById: o.postedBy ? String(o.postedBy) : null,
     intent: o.intent === 'rent' ? 'rent' : 'buy',
     title: o.title,
     agreementLabel: o.agreementLabel,
@@ -71,5 +77,12 @@ export function serializeListing(doc) {
     ownerVerified: o.ownerVerified,
     postedAt: o.postedAt,
     relevanceScore: o.relevanceScore,
+    contactName,
+    contactPhone,
   }
+}
+
+/** Same as public catalogue row plus contact fields (only for authenticated owner routes). */
+export function serializeListingForOwner(doc) {
+  return serializeListing(doc)
 }

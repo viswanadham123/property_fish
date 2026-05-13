@@ -26,7 +26,7 @@ export function SearchStrip({
 }: Props) {
   return (
     <div className="border-b border-border-subtle bg-page">
-      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:px-8">
+      <div className="mx-auto flex w-full flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:px-8 xl:px-12 2xl:px-16">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 lg:gap-3">
           <div className="relative shrink-0">
             <select

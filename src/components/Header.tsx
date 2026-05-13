@@ -5,6 +5,7 @@ export type HeaderUserBrief = {
 }
 
 type Props = {
+  variant?: 'full' | 'auth'
   onPostPropertyClick?: () => void
   onLogoClick?: () => void
   onAccountClick?: () => void
@@ -21,6 +22,7 @@ function initials(fullName: string) {
 }
 
 export function Header({
+  variant = 'full',
   onPostPropertyClick,
   onLogoClick,
   onAccountClick,
@@ -28,9 +30,28 @@ export function Header({
   onSignOut,
   signedInUser,
 }: Props) {
+  if (variant === 'auth') {
+    return (
+      <header className="sticky top-0 z-50 w-full border-b border-border-subtle bg-surface">
+        <div className="flex w-full items-center px-4 py-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
+          <button
+            type="button"
+            onClick={onLogoClick}
+            className="flex items-center gap-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/40"
+            aria-label="Property Fish — home"
+          >
+            <span className="inline-block h-3 w-3 rotate-45 rounded-[2px] bg-brand-600" aria-hidden />
+            <span className="text-[27px] leading-none font-bold tracking-tight text-[#2f2f5f]">Property</span>
+            <span className="text-[27px] leading-none font-medium tracking-tight text-[#8f97a8]">Fish</span>
+          </button>
+        </div>
+      </header>
+    )
+  }
+
   return (
     <header className="sticky top-0 z-50 border-b border-border-subtle bg-surface">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-none flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
         <button type="button" onClick={onLogoClick} className="flex items-center gap-2">
           <span className="inline-block h-3 w-3 rotate-45 rounded-[2px] bg-brand-600" />
           <span className="text-[27px] leading-none font-bold tracking-tight text-[#2f2f5f]">Property</span>
