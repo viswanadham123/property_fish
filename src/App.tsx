@@ -451,18 +451,32 @@ export default function App() {
           />
 
           <div className="mx-auto w-full max-w-none px-4 py-5 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
-            <div className="flex flex-wrap items-center gap-3 border-b border-border-subtle pb-5">
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 rounded-md border border-border-subtle bg-surface px-4 py-2 text-sm font-semibold text-ink shadow-sm lg:hidden"
-                onClick={() => setFiltersOpen(true)}
-              >
-                <svg className="h-5 w-5 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M7 12h10M10 18h4" />
-                </svg>
-                Filters
-              </button>
-              <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-3 sm:gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-5">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-md border border-border-subtle bg-surface px-4 py-2 text-sm font-semibold text-ink shadow-sm lg:hidden"
+                  onClick={() => setFiltersOpen(true)}
+                >
+                  <svg className="h-5 w-5 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M7 12h10M10 18h4" />
+                  </svg>
+                  Filters
+                </button>
+                <div className="min-w-0 max-w-xl">
+                  <h2 className="text-lg font-bold tracking-tight text-ink sm:text-xl">
+                    {intent === 'rent'
+                      ? 'Properties to rent — flats and homes in top localities'
+                      : 'Properties to buy — flats and homes in top localities'}
+                  </h2>
+                  <p className="mt-1 text-xs leading-snug text-ink-secondary sm:text-sm">
+                    {intent === 'rent'
+                      ? 'Use filters, search, and locality chips to shortlist by budget, BHK, and availability — then open a listing or contact the owner.'
+                      : 'Use filters, search, and locality chips to shortlist by budget, BHK, and layout — then open a listing or contact the owner.'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex min-w-0 flex-wrap items-center justify-end gap-3 sm:gap-4">
                 <p className="text-sm font-medium text-ink-secondary">
                   Showing{' '}
                   <span className="font-semibold text-ink">
