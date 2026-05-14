@@ -17,6 +17,7 @@ import type { Listing } from './data/listings'
 import { filterListings, sortListings, type SortMode } from './lib/filterAndSort'
 import { DEFAULT_FILTERS, type FilterState } from './types/filters'
 import { useAuth } from './features/auth/useAuth'
+import { toast } from 'sonner'
 
 const PAGE_CHUNK = 6
 const DEFAULT_DOC_TITLE = 'Property Fish'
@@ -45,7 +46,6 @@ type ScreenMode =
 export default function App() {
   const { user, logout, ready } = useAuth()
   const [catalogue, setCatalogue] = useState<ListingCatalogue>({ buy: [], rent: [] })
-  const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [intent, setIntent] = useState<ListingIntent>('buy')
 
@@ -204,15 +204,23 @@ export default function App() {
     const showSpinner = opts?.showSpinner !== false
     if (showSpinner) {
       setLoading(true)
-      setLoadError(null)
     }
     try {
       const rows = await fetchListingCatalogue(opts?.signal)
       setCatalogue(rows)
-      if (showSpinner) setLoadError(null)
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return
-      if (showSpinner) setLoadError('Unable to refresh properties. Please try again.')
+      if (showSpinner) {
+        toast.error('Unable to refresh properties. Please try again.', {
+          duration: 10_000,
+          action: {
+            label: 'Retry',
+            onClick: () => {
+              void loadCatalogue({ showSpinner: true })
+            },
+          },
+        })
+      }
     } finally {
       if (showSpinner) setLoading(false)
     }
@@ -223,7 +231,6 @@ export default function App() {
     if (!user) {
       setCatalogue({ buy: [], rent: [] })
       setLoading(false)
-      setLoadError(null)
       return
     }
     const controller = new AbortController()
@@ -250,11 +257,6 @@ export default function App() {
     setCommittedQuery('')
     setDraftQuery('')
     setSortBy('relevance')
-  }
-
-  function retryFetch() {
-    if (!user) return
-    void loadCatalogue({ showSpinner: true })
   }
 
   function submitSearch() {
@@ -493,15 +495,6 @@ export default function App() {
           />
 
           <div className="min-w-0 flex-1 space-y-6">
-            {loadError ? (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
-                <p>{loadError}</p>
-                <button type="button" className="mt-2 font-semibold text-brand-600 hover:underline" onClick={retryFetch}>
-                  Retry
-                </button>
-              </div>
-            ) : null}
-
             {loading ? (
               <ListingSkeleton />
             ) : viewMode === 'map' ? (

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { resetPassword } from '../api/authApi'
 import { AuthSplitLayout } from './AuthSplitLayout'
 import { PasswordField } from './PasswordField'
@@ -17,7 +18,6 @@ const BULLETS = [
 
 export function ResetPasswordScreen({ token, onSuccess, onBack }: Props) {
   const [done, setDone] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   return (
@@ -31,11 +31,9 @@ export function ResetPasswordScreen({ token, onSuccess, onBack }: Props) {
         <h1 className="text-2xl font-bold text-ink">New password</h1>
         <p className="mt-1 text-sm text-ink-secondary">Enter and confirm your new password.</p>
 
-        {error ? <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{error}</p> : null}
-
         {done ? (
-          <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm font-medium text-emerald-900">
-            <p>Your password was updated. You can sign in now.</p>
+          <div className="mt-4 rounded-md border border-border-subtle bg-surface-muted px-3 py-3 text-sm text-ink">
+            <p className="font-medium">Your password was updated. You can sign in now.</p>
             <button type="button" onClick={onSuccess} className="mt-3 font-semibold text-brand-700 hover:underline">
               Go to sign in
             </button>
@@ -49,16 +47,15 @@ export function ResetPasswordScreen({ token, onSuccess, onBack }: Props) {
               const password = String(form.get('password') || '')
               const confirm = String(form.get('passwordConfirm') || '')
               if (password !== confirm) {
-                setError('Passwords do not match')
+                toast.error('Passwords do not match')
                 return
               }
               setLoading(true)
-              setError(null)
               try {
                 await resetPassword({ token, password })
                 setDone(true)
               } catch (err) {
-                setError(err instanceof Error ? err.message : 'Reset failed')
+                toast.error(err instanceof Error ? err.message : 'Reset failed')
               } finally {
                 setLoading(false)
               }

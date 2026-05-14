@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { signIn } from '../api/authApi'
 import { useAuth } from '../features/auth/useAuth'
 import { AuthSplitLayout } from './AuthSplitLayout'
@@ -19,8 +20,6 @@ const BULLETS = [
 
 export function SignInScreen({ onGoToSignUp, onForgotPassword, onAuthenticated }: Props) {
   const { login } = useAuth()
-  const [submitted, setSubmitted] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   return (
@@ -34,14 +33,6 @@ export function SignInScreen({ onGoToSignUp, onForgotPassword, onAuthenticated }
         <h1 className="text-2xl font-bold text-ink">Sign in</h1>
         <p className="mt-1 text-sm text-ink-secondary">Enter your email and password to continue.</p>
 
-        {submitted ? (
-          <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">
-            Signed in successfully.
-          </p>
-        ) : null}
-
-        {error ? <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{error}</p> : null}
-
         <form
           className="mt-6 space-y-4"
           onSubmit={async (e) => {
@@ -51,15 +42,13 @@ export function SignInScreen({ onGoToSignUp, onForgotPassword, onAuthenticated }
             const password = String(form.get('password') || '')
 
             setLoading(true)
-            setError(null)
             try {
               const data = await signIn({ email, password })
               login(data.token, data.user, data.favoriteListingIds)
-              setSubmitted(true)
+              toast.success('Signed in successfully.')
               onAuthenticated?.()
             } catch (err) {
-              setSubmitted(false)
-              setError(err instanceof Error ? err.message : 'Sign in failed')
+              toast.error(err instanceof Error ? err.message : 'Sign in failed')
             } finally {
               setLoading(false)
             }

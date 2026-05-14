@@ -65,13 +65,8 @@ export function FilterSidebar({ mobileOpen, onCloseMobile, filters, onFiltersCha
       <aside className={asideClass} aria-label="Filters">
         <div className="flex h-full flex-col border-r border-border-subtle bg-surface lg:rounded-lg lg:border lg:shadow-[0_2px_12px_rgba(45,45,45,0.06)]">
           <div className="sticky top-0 z-10 flex shrink-0 items-center justify-between gap-2 border-b border-border-subtle bg-surface px-4 pt-3 pb-0">
-            <div className="flex gap-4">
-              <div className="border-b-2 border-brand-600 pb-3">
-                <h2 className="text-base font-bold text-ink">Filters</h2>
-              </div>
-              <button type="button" className="pb-3 text-sm font-semibold text-ink-secondary hover:text-ink">
-                More Filters
-              </button>
+            <div className="border-b-2 border-brand-600 pb-3">
+              <h2 className="text-base font-bold text-ink">Filters</h2>
             </div>
             <button
               type="button"

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import { createListing, updateMyListing, type ListingIntent } from '../api/listingsApi'
 import type { Listing } from '../data/listings'
 import type { Furnishing, PropertyKind, TenantKind } from '../types/filters'
@@ -16,23 +17,21 @@ const TENANT_OPTIONS: { label: string; value: TenantKind }[] = [
   { label: 'Company', value: 'company' },
 ]
 
-const PROPERTY_KIND_OPTIONS: { label: string; value: PropertyKind }[] = [
-  { label: 'Apartment', value: 'apartment' },
-  { label: 'Independent House', value: 'independent' },
-  { label: 'Gated Villa', value: 'gated' },
-]
-
-function parseTenantKinds(form: FormData): TenantKind[] {
-  const raw = form.getAll('tenants') as string[]
-  const allowed: TenantKind[] = ['bachelor', 'family', 'company']
-  return raw.filter((x): x is TenantKind => allowed.includes(x as TenantKind))
+/** Map listing `propertyType` (dropdown) to search filter slugs stored in `propertyKinds`. */
+function propertyKindsFromPropertyType(propertyType: string): PropertyKind[] {
+  const t = propertyType.trim()
+  if (t === 'Apartment') return ['apartment']
+  if (t === 'Independent House/Villa') return ['independent']
+  if (t === 'Gated Community Villa') return ['gated']
+  if (t === 'Builder Floor') return ['apartment']
+  const lower = t.toLowerCase()
+  if (lower.includes('gated')) return ['gated']
+  if (lower.includes('independent') || lower.includes('villa')) return ['independent']
+  return ['apartment']
 }
 
-function parsePropertyKinds(form: FormData): PropertyKind[] {
-  const raw = form.getAll('propertyKinds') as string[]
-  const allowed: PropertyKind[] = ['apartment', 'independent', 'gated']
-  return raw.filter((x): x is PropertyKind => allowed.includes(x as PropertyKind))
-}
+/** Sale listings: tenant filter on search still matches any selection. */
+const TENANTS_ALL: TenantKind[] = ['bachelor', 'family', 'company']
 
 type EditContext = { listing: Listing; intent: ListingIntent }
 
@@ -74,7 +73,6 @@ export function PostPropertyScreen({
   initialIntent = 'buy',
 }: Props) {
   const [submitted, setSubmitted] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   const formKey = edit ? `edit-${edit.listing.id}` : `create-${initialIntent}`
@@ -95,7 +93,6 @@ export function PostPropertyScreen({
         contactPhone: '',
         furnishing: 'semi' as Furnishing,
         tenants: ['family'] as TenantKind[],
-        propertyKinds: ['apartment'] as PropertyKind[],
       }
     }
     const loc = splitLocationForForm(edit.listing.location)
@@ -113,14 +110,17 @@ export function PostPropertyScreen({
       contactPhone: edit.listing.contactPhone ?? '',
       furnishing: edit.listing.furnishing,
       tenants: (edit.listing.tenants?.length ? edit.listing.tenants : ['family']) as TenantKind[],
-      propertyKinds: (edit.listing.propertyKinds?.length ? edit.listing.propertyKinds : ['apartment']) as PropertyKind[],
     }
   }, [edit, initialIntent])
 
+  const [listingIntentRent, setListingIntentRent] = useState(() => defaults.intentIsRent)
+  const [tenantsSelected, setTenantsSelected] = useState<TenantKind[]>(defaults.tenants)
+
   useEffect(() => {
     setSubmitted(false)
-    setError(null)
-  }, [formKey])
+    setListingIntentRent(defaults.intentIsRent)
+    setTenantsSelected(defaults.tenants)
+  }, [formKey, defaults.intentIsRent, defaults.tenants])
 
   const heading = edit ? 'Edit your property' : 'Post Your Property'
   const subheading = edit
@@ -160,9 +160,9 @@ export function PostPropertyScreen({
       </div>
 
       {submitted ? (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-6 text-emerald-900">
+        <div className="rounded-lg border border-border-subtle bg-surface-muted p-6 text-ink">
           <h2 className="text-lg font-bold">{successTitle}</h2>
-          <p className="mt-1 text-sm">{successBody}</p>
+          <p className="mt-1 text-sm text-ink-secondary">{successBody}</p>
           {edit ? (
             <button
               type="button"
@@ -175,8 +175,6 @@ export function PostPropertyScreen({
         </div>
       ) : null}
 
-      {error ? <p className="mb-4 rounded-md bg-red-50 px-4 py-2 text-sm font-medium text-red-700">{error}</p> : null}
-
       {!submitted ? (
         <form
           key={formKey}
@@ -184,10 +182,9 @@ export function PostPropertyScreen({
         onSubmit={async (e) => {
           e.preventDefault()
           setLoading(true)
-          setError(null)
           try {
             const form = new FormData(e.currentTarget)
-            const intent = form.get('intent') === 'Rent' ? 'rent' : 'buy'
+            const intent = listingIntentRent ? 'rent' : 'buy'
             const city = String(form.get('city') || '').trim()
             const locality = String(form.get('locality') || '').trim()
             const amount = Number(form.get('agreementAmountINR') || 0)
@@ -198,15 +195,14 @@ export function PostPropertyScreen({
             const furnishing: Furnishing = ['full', 'semi', 'none'].includes(furnishingRaw)
               ? (furnishingRaw as Furnishing)
               : 'semi'
-            const tenants = parseTenantKinds(form)
-            const propertyKinds = parsePropertyKinds(form)
+            const tenants =
+              intent === 'rent' ? tenantsSelected : (TENANTS_ALL as TenantKind[])
 
-            if (tenants.length === 0) {
-              setError('Choose at least one preferred tenant type (same options as property search filters).')
-              return
-            }
-            if (propertyKinds.length === 0) {
-              setError('Choose at least one property kind: Apartment, Independent House, or Gated Villa.')
+            const propertyType = String(form.get('propertyType') || 'Apartment')
+            const propertyKinds = propertyKindsFromPropertyType(propertyType)
+
+            if (intent === 'rent' && tenants.length === 0) {
+              toast.error('Choose at least one preferred tenant type (same options as property search filters).')
               return
             }
 
@@ -214,7 +210,7 @@ export function PostPropertyScreen({
               contactName,
               contactPhone,
               title: String(form.get('title') || ''),
-              propertyType: String(form.get('propertyType') || 'Apartment'),
+              propertyType,
               bhk: String(form.get('bhk') || '2 BHK'),
               location: city && locality ? `${locality}, ${city}` : city || locality,
               agreementAmountINR: amount,
@@ -237,7 +233,7 @@ export function PostPropertyScreen({
             }
 
             if (!payload.title || !payload.location) {
-              setError('Title and location are required')
+              toast.error('Title and location are required')
               return
             }
 
@@ -257,7 +253,9 @@ export function PostPropertyScreen({
             }
           } catch (err) {
             setSubmitted(false)
-            setError(err instanceof Error ? err.message : edit ? 'Failed to save changes' : 'Failed to submit property')
+            toast.error(
+              err instanceof Error ? err.message : edit ? 'Failed to save changes' : 'Failed to submit property',
+            )
           } finally {
             setLoading(false)
           }
@@ -296,17 +294,20 @@ export function PostPropertyScreen({
             <label className="text-sm font-medium text-ink-secondary">
               Intent
               <select
-                name="intent"
-                defaultValue={defaults.intentIsRent ? 'Rent' : 'Sell'}
+                value={listingIntentRent ? 'Rent' : 'Sell'}
+                onChange={(e) => {
+                  const nextRent = e.target.value === 'Rent'
+                  setListingIntentRent(nextRent)
+                  if (nextRent && tenantsSelected.length === 0) setTenantsSelected(['family'])
+                }}
                 className="mt-1 w-full rounded-md border border-border-subtle bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-600 focus:ring-2 focus:ring-brand-600/25 focus:outline-none"
               >
-                <option>Sell</option>
-                <option>Rent</option>
+                <option value="Sell">Sell</option>
+                <option value="Rent">Rent</option>
               </select>
             </label>
             <label className="text-sm font-medium text-ink-secondary">
-              <span>BHK</span>
-              <span className="mt-0.5 block text-xs font-normal text-ink-muted">Matches “BHK Type” in property search filters</span>
+              BHK
               <select
                 name="bhk"
                 defaultValue={defaults.bhk}
@@ -358,8 +359,7 @@ export function PostPropertyScreen({
               />
             </label>
             <label className="text-sm font-medium text-ink-secondary">
-              <span>Availability (possession)</span>
-              <span className="mt-0.5 block text-xs font-normal text-ink-muted">Same choices as “Availability” in the filter sidebar</span>
+              Availability (possession)
               <select
                 name="availability"
                 defaultValue={defaults.availability}
@@ -376,10 +376,7 @@ export function PostPropertyScreen({
         </section>
 
         <section>
-          <h2 className="mb-1 text-sm font-bold uppercase tracking-wide text-ink-muted">How buyers filter your property</h2>
-          <p className="mb-4 text-xs text-ink-secondary">
-            These line up with the sidebar filters on the main search page (furnishing, tenants, and property kind).
-          </p>
+          <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-ink-muted">How buyers filter your property</h2>
 
           <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-muted">Furnishing</h3>
           <div className="mb-5 flex flex-col gap-2.5 text-sm text-ink-secondary">
@@ -391,48 +388,35 @@ export function PostPropertyScreen({
             ))}
           </div>
 
-          <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-muted">Preferred tenants</h3>
-          <div className="mb-5 flex flex-wrap gap-2">
-            {TENANT_OPTIONS.map(({ label, value }) => {
-              const on = defaults.tenants.includes(value)
-              return (
-                <label
-                  key={value}
-                  className={
-                    'cursor-pointer rounded-full border px-3 py-2 text-xs font-semibold transition ' +
-                    (on
-                      ? 'border-brand-600 bg-brand-50 text-brand-700'
-                      : 'border-border-subtle bg-surface-muted text-ink-secondary hover:border-brand-600/35')
-                  }
-                >
-                  <input type="checkbox" name="tenants" value={value} defaultChecked={on} className="sr-only" />
-                  {label}
-                </label>
-              )
-            })}
-          </div>
-
-          <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-muted">Property kind</h3>
-          <p className="mb-2 text-xs text-ink-muted">Used for “Property Type” filters (apartment / independent / gated).</p>
-          <div className="mb-5 flex flex-wrap gap-2">
-            {PROPERTY_KIND_OPTIONS.map(({ label, value }) => {
-              const on = defaults.propertyKinds.includes(value)
-              return (
-                <label
-                  key={value}
-                  className={
-                    'cursor-pointer rounded-full border px-3 py-2 text-xs font-semibold transition ' +
-                    (on
-                      ? 'border-brand-600 bg-brand-50 text-brand-700'
-                      : 'border-border-subtle bg-surface-muted text-ink-secondary hover:border-brand-600/35')
-                  }
-                >
-                  <input type="checkbox" name="propertyKinds" value={value} defaultChecked={on} className="sr-only" />
-                  {label}
-                </label>
-              )
-            })}
-          </div>
+          {listingIntentRent ? (
+            <>
+              <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-muted">Preferred tenants</h3>
+              <div className="mb-5 flex flex-wrap gap-2">
+                {TENANT_OPTIONS.map(({ label, value }) => {
+                  const on = tenantsSelected.includes(value)
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() =>
+                        setTenantsSelected((prev) =>
+                          prev.includes(value) ? prev.filter((x) => x !== value) : [...prev, value],
+                        )
+                      }
+                      className={
+                        'rounded-full border px-3 py-2 text-xs font-semibold transition ' +
+                        (on
+                          ? 'border-brand-600 bg-brand-50 text-brand-700'
+                          : 'border-border-subtle bg-surface-muted text-ink-secondary hover:border-brand-600/35')
+                      }
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          ) : null}
         </section>
 
         <section>

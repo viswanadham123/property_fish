@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Provider } from 'react-redux'
+import { Toaster } from 'sonner'
 import './style.css'
 import App from './App.tsx'
 import { AuthBootstrap } from './features/auth/AuthBootstrap'
@@ -11,6 +12,7 @@ createRoot(document.getElementById('root')!).render(
     <Provider store={store}>
       <AuthBootstrap>
         <App />
+        <Toaster position="top-right" richColors closeButton />
       </AuthBootstrap>
     </Provider>
   </StrictMode>,

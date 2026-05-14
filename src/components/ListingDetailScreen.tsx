@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import type { Listing, ListingIntent } from '../data/listings'
 import { fetchListingById } from '../api/listingsApi'
 import {
@@ -43,16 +44,14 @@ export function ListingDetailScreen({
 }: Props) {
   const { user, favoriteListingIds, toggleFavorite } = useAuth()
   const [listing, setListing] = useState(initialListing)
-  const [detailError, setDetailError] = useState<string | null>(null)
 
   useEffect(() => {
     const ac = new AbortController()
-    setDetailError(null)
     void fetchListingById(initialListing.id, ac.signal)
       .then(setListing)
       .catch((e) => {
         if (e instanceof DOMException && e.name === 'AbortError') return
-        setDetailError(e instanceof Error ? e.message : 'Could not load latest property details')
+        toast.error(e instanceof Error ? e.message : 'Could not load latest property details')
       })
     return () => ac.abort()
   }, [initialListing.id])
@@ -76,9 +75,6 @@ export function ListingDetailScreen({
 
   return (
     <div className="mx-auto w-full max-w-none px-4 py-6 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
-      {detailError ? (
-        <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{detailError}</p>
-      ) : null}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <button
           type="button"

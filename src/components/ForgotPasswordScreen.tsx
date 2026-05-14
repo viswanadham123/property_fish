@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { requestPasswordReset } from '../api/authApi'
 import { AuthSplitLayout } from './AuthSplitLayout'
 
@@ -15,7 +16,6 @@ const BULLETS = [
 export function ForgotPasswordScreen({ onBackToSignIn }: Props) {
   const [sent, setSent] = useState(false)
   const [devLink, setDevLink] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   return (
@@ -29,12 +29,12 @@ export function ForgotPasswordScreen({ onBackToSignIn }: Props) {
         <h1 className="text-2xl font-bold text-ink">Reset password</h1>
         <p className="mt-1 text-sm text-ink-secondary">We will email instructions when email delivery is configured.</p>
 
-        {error ? <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{error}</p> : null}
-
         {sent ? (
-          <div className="mt-4 space-y-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-900">
-            <p className="font-medium">Request received.</p>
-            <p>If that email is registered, follow the link to choose a new password. The link expires in one hour.</p>
+          <div className="mt-4 space-y-3 rounded-md border border-border-subtle bg-surface-muted px-3 py-3 text-sm text-ink">
+            <p className="font-medium text-ink">Request received.</p>
+            <p className="text-ink-secondary">
+              If that email is registered, follow the link to choose a new password. The link expires in one hour.
+            </p>
             {devLink ? (
               <div className="rounded-md bg-white/80 p-3 ring-1 ring-emerald-200">
                 <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Development only</p>
@@ -60,13 +60,12 @@ export function ForgotPasswordScreen({ onBackToSignIn }: Props) {
               const form = new FormData(e.currentTarget)
               const email = String(form.get('email') || '').trim()
               setLoading(true)
-              setError(null)
               try {
                 const data = await requestPasswordReset(email)
                 setDevLink(data.devResetUrl ?? null)
                 setSent(true)
               } catch (err) {
-                setError(err instanceof Error ? err.message : 'Something went wrong')
+                toast.error(err instanceof Error ? err.message : 'Something went wrong')
               } finally {
                 setLoading(false)
               }

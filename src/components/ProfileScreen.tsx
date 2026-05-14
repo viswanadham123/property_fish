@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
+import { toast } from 'sonner'
 import { updateProfile, type PublicUser } from '../api/authApi'
 import { fetchFavoriteListings } from '../api/favoritesApi'
 import { fetchMyListingCatalogue } from '../api/listingsApi'
@@ -49,7 +50,6 @@ export function ProfileScreen({
     profession: user.profession ?? '',
   }))
   const [profileSaving, setProfileSaving] = useState(false)
-  const [profileError, setProfileError] = useState<string | null>(null)
 
   useLayoutEffect(() => {
     if (!profileNavTab || profileNavToken <= 0) return
@@ -69,21 +69,23 @@ export function ProfileScreen({
 
   const [favorites, setFavorites] = useState<Listing[]>([])
   const [favLoading, setFavLoading] = useState(false)
-  const [favError, setFavError] = useState<string | null>(null)
+  const [favLoadFailed, setFavLoadFailed] = useState(false)
 
   const [myBuy, setMyBuy] = useState<Listing[]>([])
   const [myRent, setMyRent] = useState<Listing[]>([])
   const [myLoading, setMyLoading] = useState(false)
-  const [myError, setMyError] = useState<string | null>(null)
+  const [myLoadFailed, setMyLoadFailed] = useState(false)
 
   const loadFavorites = useCallback(async () => {
     setFavLoading(true)
-    setFavError(null)
+    setFavLoadFailed(false)
     try {
       const rows = await fetchFavoriteListings()
       setFavorites(rows)
     } catch (e) {
-      setFavError(e instanceof Error ? e.message : 'Failed to load favorites')
+      const msg = e instanceof Error ? e.message : 'Failed to load favorites'
+      toast.error(msg)
+      setFavLoadFailed(true)
     } finally {
       setFavLoading(false)
     }
@@ -91,13 +93,15 @@ export function ProfileScreen({
 
   const loadMyListings = useCallback(async () => {
     setMyLoading(true)
-    setMyError(null)
+    setMyLoadFailed(false)
     try {
       const cat = await fetchMyListingCatalogue()
       setMyBuy(cat.buy)
       setMyRent(cat.rent)
     } catch (e) {
-      setMyError(e instanceof Error ? e.message : 'Failed to load your properties')
+      const msg = e instanceof Error ? e.message : 'Failed to load your properties'
+      toast.error(msg)
+      setMyLoadFailed(true)
     } finally {
       setMyLoading(false)
     }
@@ -184,7 +188,6 @@ export function ProfileScreen({
                     type="button"
                     disabled={profileSaving}
                     onClick={() => {
-                      setProfileError(null)
                       setEditing(false)
                     }}
                     className="rounded-md border border-border-subtle bg-surface px-4 py-2 text-sm font-semibold text-ink-secondary hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-60"
@@ -196,7 +199,6 @@ export function ProfileScreen({
                     disabled={profileSaving}
                     onClick={async () => {
                       setProfileSaving(true)
-                      setProfileError(null)
                       try {
                         await updateProfile({
                           fullName: draft.fullName.trim(),
@@ -206,8 +208,9 @@ export function ProfileScreen({
                         })
                         await refreshUser()
                         setEditing(false)
+                        toast.success('Profile updated.')
                       } catch (e) {
-                        setProfileError(e instanceof Error ? e.message : 'Save failed')
+                        toast.error(e instanceof Error ? e.message : 'Save failed')
                       } finally {
                         setProfileSaving(false)
                       }
@@ -221,7 +224,6 @@ export function ProfileScreen({
                 <button
                   type="button"
                   onClick={() => {
-                    setProfileError(null)
                     setDraft({
                       fullName: user.fullName,
                       phone: user.phone,
@@ -236,10 +238,6 @@ export function ProfileScreen({
                 </button>
               )}
             </div>
-
-            {profileError ? (
-              <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{profileError}</p>
-            ) : null}
 
             {editing ? (
               <div className="grid gap-4 sm:grid-cols-2">
@@ -313,9 +311,9 @@ export function ProfileScreen({
             )}
           </div>
         ) : tab === 'favorites' ? (
-          favError ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
-              <p>{favError}</p>
+          favLoadFailed && !favLoading ? (
+            <div className="rounded-lg border border-border-subtle bg-surface px-4 py-3 text-sm text-ink-secondary">
+              <p>Could not load favorites.</p>
               <button type="button" className="mt-2 font-semibold text-brand-600 hover:underline" onClick={() => void loadFavorites()}>
                 Retry
               </button>
@@ -339,9 +337,9 @@ export function ProfileScreen({
               ))}
             </div>
           )
-        ) : myError ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
-            <p>{myError}</p>
+        ) : myLoadFailed && !myLoading ? (
+          <div className="rounded-lg border border-border-subtle bg-surface px-4 py-3 text-sm text-ink-secondary">
+            <p>Could not load your properties.</p>
             <button type="button" className="mt-2 font-semibold text-brand-600 hover:underline" onClick={() => void loadMyListings()}>
               Retry
             </button>
